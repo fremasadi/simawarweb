@@ -5,4 +5,4 @@
     </div>
     <p class="mt-4"></p>
     <p class="mt-2 text-xs text-gray-500">Scan QR Code ini dengan aplikasi karyawan untuk absensi</p>
-</div>
+</div>  

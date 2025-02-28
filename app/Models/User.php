@@ -6,6 +6,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
 use Laravel\Sanctum\HasApiTokens; // <-- Import trait ini
 
 
@@ -51,4 +53,9 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    public function attendances(): HasMany
+{
+    return $this->hasMany(Attendance::class, 'user_id');
+}
 }

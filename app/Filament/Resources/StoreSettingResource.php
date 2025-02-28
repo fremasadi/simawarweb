@@ -2,9 +2,9 @@
 
 namespace App\Filament\Resources;
 
-use App\Filament\Resources\AttendanceResource\Pages;
-use App\Filament\Resources\AttendanceResource\RelationManagers;
-use App\Models\Attendance;
+use App\Filament\Resources\StoreSettingResource\Pages;
+use App\Filament\Resources\StoreSettingResource\RelationManagers;
+use App\Models\StoreSetting;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -12,10 +12,12 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Filament\Forms\Components\TimePicker;
+use Filament\Forms\Components\Toggle;
 
-class AttendanceResource extends Resource
+class StoreSettingResource extends Resource
 {
-    protected static ?string $model = Attendance::class;
+    protected static ?string $model = StoreSetting::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
@@ -23,16 +25,21 @@ class AttendanceResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\TextInput::make('user_id')
+                TimePicker::make('open_time')
+                    ->label('Jam Buka')
                     ->required()
-                    ->numeric(),
-                Forms\Components\DatePicker::make('date')
-                    ->required(),
-                Forms\Components\TextInput::make('check_in'),
-                Forms\Components\TextInput::make('status')
-                    ->required(),
-                Forms\Components\TextInput::make('late_minutes')
-                    ->numeric(),
+                    ->seconds(false), // Tidak perlu input detik
+                    
+                TimePicker::make('close_time')
+                    ->label('Jam Tutup')
+                    ->required()
+                    ->seconds(false),
+    
+                // Toggle::make('is_open')
+                //     ->label('Status Toko')
+                //     ->onIcon('heroicon-s-check')
+                //     ->offIcon('heroicon-s-x')
+                //     ->required(),
             ]);
     }
 
@@ -40,17 +47,10 @@ class AttendanceResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('user_id')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('date')
-                    ->date()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('check_in'),
-                Tables\Columns\TextColumn::make('status'),
-                Tables\Columns\TextColumn::make('late_minutes')
-                    ->numeric()
-                    ->sortable(),
+                Tables\Columns\TextColumn::make('open_time'),
+                Tables\Columns\TextColumn::make('close_time'),
+                // Tables\Columns\IconColumn::make('is_open')
+                //     ->boolean(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
@@ -83,9 +83,9 @@ class AttendanceResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListAttendances::route('/'),
-            'create' => Pages\CreateAttendance::route('/create'),
-            'edit' => Pages\EditAttendance::route('/{record}/edit'),
+            'index' => Pages\ListStoreSettings::route('/'),
+            'create' => Pages\CreateStoreSetting::route('/create'),
+            'edit' => Pages\EditStoreSetting::route('/{record}/edit'),
         ];
     }
 }
