@@ -28,7 +28,7 @@ class User extends Authenticatable
         'address',
         'phone',
         'image',
-        'role', 
+        'role',
     ];
 
     /**
@@ -57,5 +57,9 @@ class User extends Authenticatable
     public function attendances(): HasMany
 {
     return $this->hasMany(Attendance::class, 'user_id');
+}
+public function salaries()
+{
+    return $this->hasMany(Salary::class);
 }
 }
