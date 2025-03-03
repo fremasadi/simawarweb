@@ -19,6 +19,24 @@ class ImageModelResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
+    protected static ?string $navigationLabel = 'Gambar Model';
+
+    public static function getModelLabel(): string
+    {
+        return 'Gambar Model';
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return 'Daftar Gambar Model';
+    }
+
+
+    public static function getNavigationGroup(): ?string
+    {
+        return 'Manajemen Pesanan';
+    }
+
     public static function form(Form $form): Form
     {
         return $form

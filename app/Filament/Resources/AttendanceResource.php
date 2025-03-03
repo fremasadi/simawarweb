@@ -12,13 +12,33 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Filament\Tables\Columns\TextColumn;
+
 
 class AttendanceResource extends Resource
 {
     protected static ?string $model = Attendance::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationIcon = 'heroicon-o-calendar-days';
 
+    protected static ?string $navigationLabel = 'Absensi Karyawan';
+
+    public static function getModelLabel(): string
+    {
+        return 'Absensi';
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return 'Daftar Absensi';
+    }
+
+
+    public static function getNavigationGroup(): ?string
+    {
+        return 'Manajemen Absensi';
+    }
+    
     public static function form(Form $form): Form
     {
         return $form
@@ -40,8 +60,9 @@ class AttendanceResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('user_id')
-                    ->numeric()
+                TextColumn::make('user.name')
+                    ->label('Nama Karyawan')
+                    ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('date')
                     ->date()

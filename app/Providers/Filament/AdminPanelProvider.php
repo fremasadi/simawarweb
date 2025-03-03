@@ -18,10 +18,31 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 use Filament\Forms\Components\Select;
+use App\Filament\Pages\Dashboard; // Pastikan namespace ini benar
 
 
 class AdminPanelProvider extends PanelProvider
 {
+    public function boot(): void
+    {
+        \Filament\Facades\Filament::registerNavigationGroups([
+            \Filament\Navigation\NavigationGroup::make('Manajemen Order')
+                ->icon(null), // Hapus ikon dari grup
+
+            \Filament\Navigation\NavigationGroup::make('Manajemen Absensi')
+                ->icon(null), // Hapus ikon dari grup
+    
+            \Filament\Navigation\NavigationGroup::make('Manajemen Gaji')
+                ->icon(null), // Hapus ikon dari grup
+    
+            \Filament\Navigation\NavigationGroup::make('Manajemen Pengguna')
+                ->icon(null), // Hapus ikon dari grup
+
+            \Filament\Navigation\NavigationGroup::make('Pengaturan')
+                ->icon(null),
+        ]);
+    }
+
     public function panel(Panel $panel): Panel
     {
         return $panel
@@ -35,7 +56,7 @@ class AdminPanelProvider extends PanelProvider
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->pages([
-                // Pages\Dashboard::class,
+                Dashboard::class,
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->widgets([

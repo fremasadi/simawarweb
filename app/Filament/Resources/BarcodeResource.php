@@ -23,8 +23,24 @@ class BarcodeResource extends Resource
     protected static ?string $model = Barcode::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-qr-code';
-    protected static ?string $navigationLabel = 'Absensi Barcode';
-    protected static ?string $modelLabel = 'Absensi QR Code';
+
+    protected static ?string $navigationLabel = 'Barcode Absensi';
+
+    public static function getModelLabel(): string
+    {
+        return 'Barcode Absensi';
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return 'Barcode Absensi';
+    }
+
+
+    public static function getNavigationGroup(): ?string
+    {
+        return 'Manajemen Absensi';
+    }
 
 
     public static function table(Table $table): Table

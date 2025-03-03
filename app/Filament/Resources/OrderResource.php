@@ -26,6 +26,24 @@ class OrderResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
+    protected static ?string $navigationLabel = 'Pesanan';
+
+    public static function getModelLabel(): string
+    {
+        return 'Pesanan';
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return 'Daftar Pesanan';
+    }
+
+
+    public static function getNavigationGroup(): ?string
+    {
+        return 'Manajemen Pesanan';
+    }
+
     public static function form(Form $form): Form
     {
         return $form

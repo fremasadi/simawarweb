@@ -21,6 +21,24 @@ class StoreSettingResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
+    protected static ?string $navigationLabel = 'Pengaturan Toko';
+
+    public static function getModelLabel(): string
+    {
+        return 'Pengaturan Toko';
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return 'Pengaturan Toko';
+    }
+
+
+    public static function getNavigationGroup(): ?string
+    {
+        return 'Pengaturan';
+    }
+
     public static function form(Form $form): Form
     {
         return $form
