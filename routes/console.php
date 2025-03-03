@@ -28,48 +28,31 @@ use Illuminate\Support\Facades\Schedule;
 // Perintah untuk menghitung pengurangan gaji
 Artisan::command('salary:calculate-deductions', function () {
     // Ambil semua data attendances
-    $attendances = Attendance::all();
+    $attendances = Attendance::with('user.salaries.salarySetting')->get();
 
     foreach ($attendances as $attendance) {
-        // Ambil pengaturan gaji berdasarkan user_id
-        $salarySetting = SalarySetting::where('user_id', $attendance->user_id)->first();
+        // Ambil data salary dan salary setting melalui relasi
+        $salary = $attendance->user->salaries->first();
 
-        if ($salarySetting) {
-            // Hitung pengurangan berdasarkan keterlambatan
-            $lateDeduction = 0;
-            if ($attendance->late_minutes > 0) {
-                $lateDeduction = $attendance->late_minutes * $salarySetting->deduction_per_minute;
-            }
+        if ($salary && $salary->salarySetting) {
+            $salarySetting = $salary->salarySetting;
 
-            // Hitung pengurangan jika tidak hadir
-            $absenceDeduction = 0;
-            if ($attendance->status === 'tidak hadir') {
-                $absenceDeduction = $salarySetting->reduction_if_absent;
-            }
-
-            // Total pengurangan
+            // Hitung pengurangan
+            $lateDeduction = $attendance->late_minutes * $salarySetting->deduction_per_minute;
+            $absenceDeduction = ($attendance->status === 'absent') ? $salarySetting->reduction_if_absent : 0;
             $totalDeduction = $lateDeduction + $absenceDeduction;
 
-            // Update atau buat data salary
-            DB::transaction(function () use ($attendance, $salarySetting, $totalDeduction) {
-                Salary::updateOrCreate(
-                    [
-                        'user_id' => $attendance->user_id,
-                        'salary_setting_id' => $salarySetting->id,
-                        'pay_date' => Carbon::now()->format('Y-m-d'), // Sesuaikan dengan periode gaji
-                    ],
-                    [
-                        'total_deduction' => $totalDeduction,
-                        'total_salary' => $salarySetting->salary - $totalDeduction,
-                        'status' => 'pending', // Atau status lainnya
-                        'note' => 'Auto-generated salary with deductions',
-                    ]
-                );
-            });
+            // Update data salary
+            $salary->update([
+                'total_deduction' => $totalDeduction,
+                'total_salary' => $salarySetting->salary - $totalDeduction,
+                'status' => 'pending',
+                'note' => 'Auto-generated salary with deductions',
+            ]);
 
             $this->info("Pengurangan gaji dihitung untuk user_id {$attendance->user_id}.");
         } else {
-            $this->warn("Tidak ada pengaturan gaji untuk user_id {$attendance->user_id}.");
+            $this->warn("Tidak ada data gaji atau pengaturan gaji untuk user_id {$attendance->user_id}.");
         }
     }
 
