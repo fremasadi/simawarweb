@@ -62,7 +62,13 @@ Artisan::command('salary:calculate-deductions', function () {
                     'note' => 'Auto-generated salary with deductions',
                 ]);
 
-                $this->info("Pengurangan gaji dihitung untuk user_id {$attendance->user_id}.");
+                // Debugging: Tampilkan nilai yang dihitung
+                $this->info("User ID: {$attendance->user_id}");
+                $this->info("Late Minutes: {$attendance->late_minutes}");
+                $this->info("Late Deduction: {$lateDeduction}");
+                $this->info("Absence Deduction: {$absenceDeduction}");
+                $this->info("Total Deduction: {$totalDeduction}");
+                $this->info("Updated Total Salary: {$salary->total_salary}");
             } else {
                 $this->warn("Tidak ada pengaturan gaji untuk salary_setting_id {$salary->salary_setting_id}.");
             }
