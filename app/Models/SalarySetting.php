@@ -18,5 +18,8 @@ class SalarySetting extends Model
 
     ];
 
- 
+    public function salaries()
+{
+    return $this->hasMany(Salary::class);
+}
 }

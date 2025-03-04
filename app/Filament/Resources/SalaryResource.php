@@ -68,19 +68,27 @@ class SalaryResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('user.name')
+                    ->label('Nama')
                     ->numeric()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('salarySetting.name')
+                    Tables\Columns\TextColumn::make('salarySetting.salary')
+                    ->label('Gaji')
                     ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('total_salary')
-                    ->numeric()
-                    ->sortable(),
+                    ->sortable()
+                    ->money('Rp.'), // Opsional: format sebagai mata uang
                 Tables\Columns\TextColumn::make('total_deduction')
+                    ->label('Potongan')
                     ->numeric()
-                    ->sortable(),
+                    ->sortable()
+                    ->money('Rp.'), // Opsional: format sebagai mata uang
+                    Tables\Columns\TextColumn::make('total_salary')
+                    ->label('Total Gaji')
+                    ->numeric()
+                    ->sortable()
+                    ->money('Rp.'), // Opsional: format sebagai mata uang
                 Tables\Columns\TextColumn::make('status'),
                 Tables\Columns\TextColumn::make('pay_date')
+                    ->label('waktu pembayaran')
                     ->date()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')

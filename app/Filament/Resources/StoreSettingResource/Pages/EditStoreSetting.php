@@ -16,4 +16,16 @@ class EditStoreSetting extends EditRecord
             Actions\DeleteAction::make(),
         ];
     }
+
+    protected function afterSave(): void
+    {
+        // Jalankan perintah Artisan
+        Artisan::call('attendance:check');
+
+        // Tampilkan notifikasi sukses
+        Notification::make()
+            ->title('Jam Toko Berhasil Diubah')
+            ->success()
+            ->send();
+    }
 }
