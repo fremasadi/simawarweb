@@ -31,6 +31,7 @@ public static function getNavigationGroup(): ?string
         return $form
             ->schema([
                 Forms\Components\TextInput::make('name')
+                ->label('Nama')
                     ->required()
                     ->maxLength(255),
                 Forms\Components\TextInput::make('email')
@@ -38,18 +39,21 @@ public static function getNavigationGroup(): ?string
                     ->required()
                     ->maxLength(255),
                 Forms\Components\TextInput::make('password')
+                    ->label('Kata Sandi')
                     ->password()
                     ->required()
                     ->maxLength(255),
                 Forms\Components\TextInput::make('address')
+                    ->label('Alamat')
                     ->maxLength(255),
                 Forms\Components\TextInput::make('phone')
+                    ->label('No.Telefon')
                     ->tel()
                     ->maxLength(255),
                 Forms\Components\FileUpload::make('image')
                     ->image(),
                     Select::make('role')
-                    ->label('Role')
+                    ->label('Peran')
                     ->options([
                         'admin' => 'Admin',
                         'karyawan' => 'Karyawan',
