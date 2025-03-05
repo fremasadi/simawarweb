@@ -18,59 +18,59 @@ use Filament\Tables\Columns\ViewColumn;
 
 
 
-class BarcodeResource extends Resource
-{
-    protected static ?string $model = Barcode::class;
+// class BarcodeResource extends Resource
+// {
+//     protected static ?string $model = Barcode::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-qr-code';
+//     protected static ?string $navigationIcon = 'heroicon-o-qr-code';
 
-    protected static ?string $navigationLabel = 'Barcode Absensi';
+//     protected static ?string $navigationLabel = 'Barcode Absensi';
 
-    public static function getModelLabel(): string
-    {
-        return 'Barcode Absensi';
-    }
+//     public static function getModelLabel(): string
+//     {
+//         return 'Barcode Absensi';
+//     }
 
-    public static function getPluralModelLabel(): string
-    {
-        return 'Barcode Absensi';
-    }
-
-
-    public static function getNavigationGroup(): ?string
-    {
-        return 'Manajemen Absensi';
-    }
+//     public static function getPluralModelLabel(): string
+//     {
+//         return 'Barcode Absensi';
+//     }
 
 
-    public static function table(Table $table): Table
-    {
-        return $table
-            ->columns([
-                ViewColumn::make('qr_code')
-                ->label('QR Code')
-                ->view('filament.widgets.qr-code-column')
-                ->alignCenter()
-                ->extraAttributes([
-                    'class' => 'text-center',
-                ])
+//     public static function getNavigationGroup(): ?string
+//     {
+//         return 'Manajemen Absensi';
+//     }
 
-            ]);
-    }
-    
 
-    public static function getRelations(): array
-    {
-        return [
-            //
-        ];
-    }
+//     public static function table(Table $table): Table
+//     {
+//         return $table
+//             ->columns([
+//                 ViewColumn::make('qr_code')
+//                 ->label('QR Code')
+//                 ->view('filament.widgets.qr-code-column')
+//                 ->alignCenter()
+//                 ->extraAttributes([
+//                     'class' => 'text-center',
+//                 ])
 
-    public static function getPages(): array
-    {
-        return [
-            'index' => Pages\ListBarcodes::route('/'),
-           
-        ];
-    }
-}
+//             ]);
+//     }
+
+
+//     public static function getRelations(): array
+//     {
+//         return [
+//             //
+//         ];
+//     }
+
+//     public static function getPages(): array
+//     {
+//         return [
+//             'index' => Pages\ListBarcodes::route('/'),
+
+//         ];
+//     }
+// }
