@@ -137,58 +137,66 @@ class OrderResource extends Resource
     }
 
     public static function table(Table $table): Table
-{
-    return $table
-        ->columns([
-            Tables\Columns\TextColumn::make('name')
-                ->searchable(),
-            Tables\Columns\TextColumn::make('deadline')
-                ->dateTime()
-                ->sortable(),
-            Tables\Columns\TextColumn::make('phone')
-                ->searchable(),
-            Tables\Columns\TextColumn::make('quantity')
-                ->numeric()
-                ->sortable(),
-            Tables\Columns\TextColumn::make('status')
-                ->searchable(),
-            Tables\Columns\TextColumn::make('sizeModel.name') // Mengambil name dari relasi
-                ->label('Type Model') // Ubah label kolom
-                ->sortable(),
-            Tables\Columns\TextColumn::make('ditugaskan_ke')
-                ->numeric()
-                ->sortable(),
-            Tables\Columns\TextColumn::make('created_at')
-                ->dateTime()
-                ->sortable()
-                ->toggleable(isToggledHiddenByDefault: true),
-            Tables\Columns\TextColumn::make('updated_at')
-                ->dateTime()
-                ->sortable()
-                ->toggleable(isToggledHiddenByDefault: true),
-        ])
-        ->filters([
-            //
-        ])
-        ->actions([
-            Tables\Actions\EditAction::make(),
-
-            // Tombol "Selesai" hanya muncul jika statusnya "dikerjakan"
-            Tables\Actions\Action::make('selesai')
-                ->label('Selesai')
-                ->icon('heroicon-o-check-circle') // Ikon centang
-                ->color('success') // Warna hijau
-                ->visible(fn ($record) => $record->status === 'dikerjakan') // Hanya tampil jika status "dikerjakan"
-                ->action(fn ($record) => $record->update(['status' => 'selesai'])) // Update status ke "selesai"
-                ->requiresConfirmation() // Konfirmasi sebelum update
-        ])
-        ->bulkActions([
-            Tables\Actions\BulkActionGroup::make([
-                Tables\Actions\DeleteBulkAction::make(),
-            ]),
-        ]);
-}
-
+    {
+        return $table
+            ->columns([
+                Tables\Columns\TextColumn::make('name')
+                    ->label('Nama Pesanan') // Menambahkan label
+                    ->searchable(),
+                Tables\Columns\TextColumn::make('deadline')
+                    ->label('Batas Waktu') // Menambahkan label
+                    ->dateTime()
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('phone')
+                    ->label('Nomor Telepon') // Menambahkan label
+                    ->searchable(),
+                Tables\Columns\TextColumn::make('quantity')
+                    ->label('Jumlah') // Menambahkan label
+                    ->numeric()
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('status')
+                    ->label('Status') // Menambahkan label
+                    ->searchable(),
+                Tables\Columns\TextColumn::make('sizeModel.name') // Mengambil name dari relasi
+                    ->label('Model Ukuran') // Ubah label kolom ke bahasa Indonesia
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('ditugaskan_ke')
+                    ->label('Ditugaskan Ke') // Menambahkan label
+                    ->numeric()
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('created_at')
+                    ->label('Dibuat Pada') // Menambahkan label
+                    ->dateTime()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('updated_at')
+                    ->label('Diperbarui Pada') // Menambahkan label
+                    ->dateTime()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+            ])
+            ->filters([
+                //
+            ])
+            ->actions([
+                Tables\Actions\EditAction::make(),
+    
+                // Tombol "Selesai" hanya muncul jika statusnya "dikerjakan"
+                Tables\Actions\Action::make('selesai')
+                    ->label('Selesai')
+                    ->icon('heroicon-o-check-circle') // Ikon centang
+                    ->color('success') // Warna hijau
+                    ->visible(fn ($record) => $record->status === 'dikerjakan') // Hanya tampil jika status "dikerjakan"
+                    ->action(fn ($record) => $record->update(['status' => 'selesai'])) // Update status ke "selesai"
+                    ->requiresConfirmation() // Konfirmasi sebelum update
+            ])
+            ->bulkActions([
+                Tables\Actions\BulkActionGroup::make([
+                    Tables\Actions\DeleteBulkAction::make(),
+                ]),
+            ]);
+    }
+    
 
     public static function getRelations(): array
     {
