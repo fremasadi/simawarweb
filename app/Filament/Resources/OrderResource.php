@@ -71,7 +71,7 @@ class OrderResource extends Resource
 
                     return view('components.image-preview-content', ['imageUrl' => $imageUrl]);
                 })
-                ->columnSpanFull(),
+                ->columns(1), // Ini akan membuat section selebar mungkin
                 Forms\Components\TextInput::make('name')
                     ->label('Nama Pemesanan')
                     ->required()
