@@ -69,4 +69,10 @@ class Order extends Model
     {
         return $this->belongsTo(ImageModel::class, 'image_id');
     }
+
+    public function user()
+{
+    return $this->belongsTo(User::class, 'ditugaskan_ke');
+}
+
 }

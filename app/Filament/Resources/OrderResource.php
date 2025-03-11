@@ -160,10 +160,10 @@ class OrderResource extends Resource
                 Tables\Columns\TextColumn::make('sizeModel.name') // Mengambil name dari relasi
                     ->label('Model Ukuran') // Ubah label kolom ke bahasa Indonesia
                     ->sortable(),
-                Tables\Columns\TextColumn::make('ditugaskan_ke')
-                    ->label('Ditugaskan Ke') // Menambahkan label
-                    ->numeric()
-                    ->sortable(),
+                Tables\Columns\TextColumn::make('user.name') // Mengambil nama dari relasi user
+                    ->label('Ditugaskan Ke') 
+                    ->sortable()
+                    ->searchable(),                
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Dibuat Pada') // Menambahkan label
                     ->dateTime()
