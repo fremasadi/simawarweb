@@ -73,21 +73,26 @@ class OrderResource extends Resource
                 })
                 ->columnSpanFull(),
                 Forms\Components\TextInput::make('name')
+                    ->label('Nama Pemesanan')
                     ->required()
                     ->maxLength(255),
                 Forms\Components\Textarea::make('address')
+                    ->label('Alamat Pemesanan')
                     ->required()
                     ->columnSpanFull(),
                 Forms\Components\DateTimePicker::make('deadline')
+                    ->label('Batas Waktu')
                     ->required(),
                 Forms\Components\TextInput::make('phone')
+                    ->label('No.Telefon Pemesan')
                     ->tel()
                     ->required()
                     ->maxLength(255),
                 Forms\Components\TextInput::make('quantity')
+                    ->label('Jumlah')
                     ->required()
                     ->numeric(),
-                    Forms\Components\Select::make('sizemodel_id')
+                Forms\Components\Select::make('sizemodel_id')
                     ->label('Pilih Model Ukuran')
                     ->options(\App\Models\SizeModel::pluck('name', 'id')) // Ambil data dari tabel size_models
                     ->required()
