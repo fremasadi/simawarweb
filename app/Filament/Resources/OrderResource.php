@@ -63,7 +63,7 @@ class OrderResource extends Resource
                     }
                 }),
 
-            Forms\Components\Placeholder::make('preview')
+                Forms\Components\Placeholder::make('preview')
                 ->label('Preview Gambar')
                 ->content(function ($get) {
                     $imageUrl = $get('selected_image');
