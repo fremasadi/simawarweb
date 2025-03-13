@@ -93,18 +93,24 @@ class SalarySettingResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('name')
+                    ->label('Nama Setting Gaji')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('salary')
+                    ->label('Gaji Pokok')
                     ->numeric()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('periode'),
+                Tables\Columns\TextColumn::make('periode')
+                    ->label('Periode Penggajian'),
                 Tables\Columns\TextColumn::make('reduction_if_absent')
+                    ->label('Potongan Jika Tidak Hadir')
                     ->numeric()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('permit_reduction')
+                    ->label('Potongan Jika Izin')
                     ->numeric()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('deduction_per_minute')
+                    ->label('Potongan Telat Permenit')
                     ->numeric()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')

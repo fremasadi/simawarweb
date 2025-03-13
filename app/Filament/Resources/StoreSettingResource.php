@@ -65,8 +65,12 @@ class StoreSettingResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('open_time'),
-                Tables\Columns\TextColumn::make('close_time'),
+                Tables\Columns\TextColumn::make('open_time')
+                    ->label('Waktu Buka')
+                ,
+                Tables\Columns\TextColumn::make('close_time')
+                    ->label('Waktu Tutup')
+                ,
                 // Tables\Columns\IconColumn::make('is_open')
                 //     ->boolean(),
                 Tables\Columns\TextColumn::make('created_at')
