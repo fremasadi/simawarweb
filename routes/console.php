@@ -69,7 +69,7 @@ Artisan::command('salary:calculate-deductions', function () {
                         }
 
                         // Simpan riwayat potongan untuk setiap attendance
-                        SalaryDeductionHistory::create([
+                        SalaryDeductionHistories::create([
                             'user_id' => $userId,
                             'salary_id' => $salary->id,
                             'attendance_id' => $attendance->id,
