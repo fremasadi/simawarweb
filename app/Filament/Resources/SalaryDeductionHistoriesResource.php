@@ -23,7 +23,30 @@ class SalaryDeductionHistoriesResource extends Resource
     {
         return $form
             ->schema([
-                //
+                Forms\Components\TextInput::make('user_id')
+                    ->required()
+                    ->numeric(),
+                Forms\Components\TextInput::make('salary_id')
+                    ->required()
+                    ->numeric(),
+                Forms\Components\TextInput::make('attendance_id')
+                    ->required()
+                    ->numeric(),
+                Forms\Components\TextInput::make('deduction_type')
+                    ->required(),
+                Forms\Components\TextInput::make('late_minutes')
+                    ->numeric(),
+                Forms\Components\TextInput::make('deduction_amount')
+                    ->required()
+                    ->numeric(),
+                Forms\Components\TextInput::make('deduction_per_minute')
+                    ->numeric(),
+                Forms\Components\TextInput::make('reduction_if_absent')
+                    ->numeric(),
+                Forms\Components\DatePicker::make('deduction_date')
+                    ->required(),
+                Forms\Components\Textarea::make('note')
+                    ->columnSpanFull(),
             ]);
     }
 
@@ -31,7 +54,39 @@ class SalaryDeductionHistoriesResource extends Resource
     {
         return $table
             ->columns([
-                //
+                Tables\Columns\TextColumn::make('user_id')
+                    ->numeric()
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('salary_id')
+                    ->numeric()
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('attendance_id')
+                    ->numeric()
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('deduction_type'),
+                Tables\Columns\TextColumn::make('late_minutes')
+                    ->numeric()
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('deduction_amount')
+                    ->numeric()
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('deduction_per_minute')
+                    ->numeric()
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('reduction_if_absent')
+                    ->numeric()
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('deduction_date')
+                    ->date()
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('created_at')
+                    ->dateTime()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('updated_at')
+                    ->dateTime()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 //
