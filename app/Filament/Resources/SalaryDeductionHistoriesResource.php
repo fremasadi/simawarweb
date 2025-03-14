@@ -73,18 +73,18 @@ class SalaryDeductionHistoriesResource extends Resource
                 ->numeric()
                 ->sortable(),
 
-            Tables\Columns\TextColumn::make('deduction_amount')
-                ->label('Jumlah Potongan')
-                ->numeric()
-                ->sortable(),
-
+            
             Tables\Columns\TextColumn::make('deduction_per_minute')
                 ->label('Potongan Per Menit')
                 ->numeric()
                 ->sortable(),
 
             Tables\Columns\TextColumn::make('reduction_if_absent')
-                ->label('Potongan Jika Absen')
+                ->label('Potongan Tidak Hadir')
+                ->numeric()
+                ->sortable(),
+                Tables\Columns\TextColumn::make('deduction_amount')
+                ->label('Jumlah Potongan')
                 ->numeric()
                 ->sortable(),
 
