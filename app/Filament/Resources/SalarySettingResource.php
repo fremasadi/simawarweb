@@ -78,7 +78,7 @@ class SalarySettingResource extends Resource
                 ->required()
                 ->prefix('Rp')
                 ->rules(['min:0']),
-                Forms\Components\TextInput::make('deduction_per_minute')
+            Forms\Components\TextInput::make('deduction_per_minute')
                 ->label('Potongan Telat Permenit')
                 ->numeric()
                 ->required()

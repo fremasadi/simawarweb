@@ -7,6 +7,7 @@ use App\Models\Salary;
 use App\Models\SalarySetting;
 use App\Models\StoreSetting;
 use App\Models\Attendance;
+use App\Models\SalaryDeductionHistory;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
@@ -33,55 +34,87 @@ Artisan::command('salary:calculate-deductions', function () {
     // Group attendances by user_id
     $groupedAttendances = $attendances->groupBy('user_id');
 
-    foreach ($groupedAttendances as $userId => $userAttendances) {
-        // Ambil data salary berdasarkan user_id
-        $salary = Salary::where('user_id', $userId)->first();
+    // Mulai transaksi database
+    DB::beginTransaction();
 
-        if ($salary) {
-            // Ambil pengaturan gaji berdasarkan salary_setting_id
-            $salarySetting = SalarySetting::find($salary->salary_setting_id);
+    try {
+        foreach ($groupedAttendances as $userId => $userAttendances) {
+            // Ambil data salary berdasarkan user_id
+            $salary = Salary::where('user_id', $userId)->first();
 
-            if ($salarySetting) {
-                // Inisialisasi total pengurangan
-                $totalDeduction = 0;
+            if ($salary) {
+                // Ambil pengaturan gaji berdasarkan salary_setting_id
+                $salarySetting = SalarySetting::find($salary->salary_setting_id);
 
-                foreach ($userAttendances as $attendance) {
-                    // Hitung pengurangan berdasarkan keterlambatan
-                    if ($attendance->status === 'telat' && $attendance->late_minutes > 0) {
-                        $lateDeduction = $attendance->late_minutes * $salarySetting->deduction_per_minute;
-                        $totalDeduction += $lateDeduction;
+                if ($salarySetting) {
+                    // Inisialisasi total pengurangan
+                    $totalDeduction = 0;
+
+                    foreach ($userAttendances as $attendance) {
+                        $deductionAmount = 0;
+                        $deductionType = $attendance->status;
+                        $lateMinutes = null;
+
+                        // Hitung pengurangan berdasarkan keterlambatan
+                        if ($attendance->status === 'telat' && $attendance->late_minutes > 0) {
+                            $lateMinutes = $attendance->late_minutes;
+                            $deductionAmount = $lateMinutes * $salarySetting->deduction_per_minute;
+                            $totalDeduction += $deductionAmount;
+                        }
+
+                        // Hitung pengurangan jika tidak hadir
+                        if ($attendance->status === 'tidak hadir') {
+                            $deductionAmount = $salarySetting->reduction_if_absent;
+                            $totalDeduction += $deductionAmount;
+                        }
+
+                        // Simpan riwayat potongan untuk setiap attendance
+                        SalaryDeductionHistory::create([
+                            'user_id' => $userId,
+                            'salary_id' => $salary->id,
+                            'attendance_id' => $attendance->id,
+                            'deduction_type' => $deductionType,
+                            'late_minutes' => $lateMinutes,
+                            'deduction_amount' => $deductionAmount,
+                            'deduction_per_minute' => $attendance->status === 'telat' ? $salarySetting->deduction_per_minute : null,
+                            'reduction_if_absent' => $attendance->status === 'tidak hadir' ? $salarySetting->reduction_if_absent : null,
+                            'deduction_date' => Carbon::now()->toDateString(),
+                            'note' => "Potongan karena " . ($attendance->status === 'telat' ? "keterlambatan {$lateMinutes} menit" : "tidak hadir"),
+                        ]);
                     }
 
-                    // Hitung pengurangan jika tidak hadir
-                    if ($attendance->status === 'tidak hadir') {
-                        $absenceDeduction = $salarySetting->reduction_if_absent;
-                        $totalDeduction += $absenceDeduction;
-                    }
+                    // Update data salary
+                    $salary->update([
+                        'total_deduction' => $totalDeduction,
+                        'total_salary' => $salarySetting->salary - $totalDeduction,
+                        'status' => 'pending', // Atau status lainnya
+                        'note' => 'Auto-generated salary with deductions',
+                    ]);
+
+                    // Debugging: Tampilkan nilai yang dihitung
+                    $this->info("User ID: {$userId}");
+                    $this->info("Total Deduction: {$totalDeduction}");
+                    $this->info("Updated Total Salary: {$salary->total_salary}");
+                    $this->info("Riwayat potongan berhasil disimpan");
+                } else {
+                    $this->warn("Tidak ada pengaturan gaji untuk salary_setting_id {$salary->salary_setting_id}.");
                 }
-
-                // Update data salary
-                $salary->update([
-                    'total_deduction' => $totalDeduction,
-                    'total_salary' => $salarySetting->salary - $totalDeduction,
-                    'status' => 'pending', // Atau status lainnya
-                    'note' => 'Auto-generated salary with deductions',
-                ]);
-
-                // Debugging: Tampilkan nilai yang dihitung
-                $this->info("User ID: {$userId}");
-                $this->info("Total Deduction: {$totalDeduction}");
-                $this->info("Updated Total Salary: {$salary->total_salary}");
             } else {
-                $this->warn("Tidak ada pengaturan gaji untuk salary_setting_id {$salary->salary_setting_id}.");
+                $this->warn("Tidak ada data gaji untuk user_id {$userId}.");
             }
-        } else {
-            $this->warn("Tidak ada data gaji untuk user_id {$userId}.");
         }
-    }
 
-    $this->info("Proses penghitungan pengurangan gaji selesai.");
-    return 0;
-})->purpose('Hitung pengurangan gaji berdasarkan data absensi dan perbarui data gaji');
+        // Commit transaksi jika semua proses berhasil
+        DB::commit();
+        $this->info("Proses penghitungan pengurangan gaji selesai.");
+        return 0;
+    } catch (\Exception $e) {
+        // Rollback transaksi jika terjadi kesalahan
+        DB::rollBack();
+        $this->error("Terjadi kesalahan: " . $e->getMessage());
+        return 1;
+    }
+})->purpose('Hitung pengurangan gaji berdasarkan data absensi, perbarui data gaji, dan simpan riwayat potongan');
 
 // Jadwalkan perintah
 Schedule::command('salary:calculate-deductions')->monthlyOn('last day of this month', '23:59');
