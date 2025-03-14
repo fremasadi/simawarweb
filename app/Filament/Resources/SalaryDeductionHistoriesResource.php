@@ -19,87 +19,101 @@ class SalaryDeductionHistoriesResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
+    protected static ?string $navigationLabel = 'Riwayat Potongan Gaji';
+
+    public static function getModelLabel(): string
+    {
+        return 'Riwayat Potongan Gaji';
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return 'Daftar Potongan Gaji';
+    }
+
+
+    public static function getNavigationGroup(): ?string
+    {
+        return 'Manajemen Gaji';
+    }
+
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                Forms\Components\TextInput::make('user_id')
-                    ->required()
-                    ->numeric(),
-                Forms\Components\TextInput::make('salary_id')
-                    ->required()
-                    ->numeric(),
-                Forms\Components\TextInput::make('attendance_id')
-                    ->required()
-                    ->numeric(),
-                Forms\Components\TextInput::make('deduction_type')
-                    ->required(),
-                Forms\Components\TextInput::make('late_minutes')
-                    ->numeric(),
-                Forms\Components\TextInput::make('deduction_amount')
-                    ->required()
-                    ->numeric(),
-                Forms\Components\TextInput::make('deduction_per_minute')
-                    ->numeric(),
-                Forms\Components\TextInput::make('reduction_if_absent')
-                    ->numeric(),
-                Forms\Components\DatePicker::make('deduction_date')
-                    ->required(),
-                Forms\Components\Textarea::make('note')
-                    ->columnSpanFull(),
+               
             ]);
     }
 
     public static function table(Table $table): Table
-    {
-        return $table
-            ->columns([
-                Tables\Columns\TextColumn::make('user_id')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('salary_id')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('attendance_id')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('deduction_type'),
-                Tables\Columns\TextColumn::make('late_minutes')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('deduction_amount')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('deduction_per_minute')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('reduction_if_absent')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('deduction_date')
-                    ->date()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('created_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('updated_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-            ])
-            ->filters([
-                //
-            ])
-            ->actions([
-                Tables\Actions\EditAction::make(),
-            ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
-            ]);
-    }
+{
+    return $table
+        ->columns([
+            Tables\Columns\TextColumn::make('user.name') // Mengambil nama dari relasi User
+                ->label('Nama Karyawan')
+                ->sortable(),
+
+            Tables\Columns\TextColumn::make('salary.name') // Mengambil nama dari relasi Salary
+                ->label('Nama Gaji')
+                ->sortable(),
+
+            Tables\Columns\TextColumn::make('attendance.name') // Mengambil nama dari relasi Attendance
+                ->label('Nama Kehadiran')
+                ->sortable(),
+
+            Tables\Columns\TextColumn::make('deduction_type')
+                ->label('Tipe Potongan'),
+
+            Tables\Columns\TextColumn::make('late_minutes')
+                ->label('Menit Keterlambatan')
+                ->numeric()
+                ->sortable(),
+
+            Tables\Columns\TextColumn::make('deduction_amount')
+                ->label('Jumlah Potongan')
+                ->numeric()
+                ->sortable(),
+
+            Tables\Columns\TextColumn::make('deduction_per_minute')
+                ->label('Potongan Per Menit')
+                ->numeric()
+                ->sortable(),
+
+            Tables\Columns\TextColumn::make('reduction_if_absent')
+                ->label('Potongan Jika Absen')
+                ->numeric()
+                ->sortable(),
+
+            Tables\Columns\TextColumn::make('deduction_date')
+                ->label('Tanggal Potongan')
+                ->date()
+                ->sortable(),
+
+            Tables\Columns\TextColumn::make('created_at')
+                ->label('Dibuat Pada')
+                ->dateTime()
+                ->sortable()
+                ->toggleable(isToggledHiddenByDefault: true),
+
+            Tables\Columns\TextColumn::make('updated_at')
+                ->label('Diperbarui Pada')
+                ->dateTime()
+                ->sortable()
+                ->toggleable(isToggledHiddenByDefault: true),
+        ])
+        ->filters([
+            //
+        ])
+        ->actions([
+            Tables\Actions\EditAction::make(),
+        ])
+        ->bulkActions([
+            Tables\Actions\BulkActionGroup::make([
+                Tables\Actions\DeleteBulkAction::make(),
+            ]),
+        ]);
+}
+
 
     public static function getRelations(): array
     {
