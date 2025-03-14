@@ -36,7 +36,7 @@ class SalarySettingResource extends Resource
 
     public static function getNavigationGroup(): ?string
     {
-        return 'Manajemen Gaji';
+        return 'Pengaturan';
     }
 
 
