@@ -7,7 +7,7 @@ use App\Models\Salary;
 use App\Models\SalarySetting;
 use App\Models\StoreSetting;
 use App\Models\Attendance;
-use App\Models\SalaryDeductionHistory;
+use App\Models\SalaryDeductionHistories;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
