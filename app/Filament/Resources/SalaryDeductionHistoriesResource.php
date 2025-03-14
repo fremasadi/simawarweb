@@ -52,14 +52,18 @@ class SalaryDeductionHistoriesResource extends Resource
             Tables\Columns\TextColumn::make('user.name') // Mengambil nama dari relasi User
                 ->label('Nama Karyawan')
                 ->sortable(),
-
-            Tables\Columns\TextColumn::make('salary.name') // Mengambil nama dari relasi Salary
-                ->label('Nama Gaji')
+            Tables\Columns\TextColumn::make('deduction_date')
+                ->label('Tanggal Potongan')
+                ->date()
                 ->sortable(),
 
-            Tables\Columns\TextColumn::make('attendance.name') // Mengambil nama dari relasi Attendance
-                ->label('Nama Kehadiran')
-                ->sortable(),
+            // Tables\Columns\TextColumn::make('salary.name') // Mengambil nama dari relasi Salary
+            //     ->label('Nama Gaji')
+            //     ->sortable(),
+
+            // Tables\Columns\TextColumn::make('attendance.name') // Mengambil nama dari relasi Attendance
+            //     ->label('Nama Kehadiran')
+            //     ->sortable(),
 
             Tables\Columns\TextColumn::make('deduction_type')
                 ->label('Tipe Potongan'),
@@ -84,11 +88,7 @@ class SalaryDeductionHistoriesResource extends Resource
                 ->numeric()
                 ->sortable(),
 
-            Tables\Columns\TextColumn::make('deduction_date')
-                ->label('Tanggal Potongan')
-                ->date()
-                ->sortable(),
-
+            
             Tables\Columns\TextColumn::make('created_at')
                 ->label('Dibuat Pada')
                 ->dateTime()
