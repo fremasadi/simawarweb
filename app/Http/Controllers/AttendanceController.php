@@ -51,17 +51,26 @@ class AttendanceController extends Controller
     ], 201);
 }
 
-
-
-    public function history()
+public function history(Request $request)
 {
     // Dapatkan user yang sedang login berdasarkan token
     $user = Auth::user();
 
-    // Ambil riwayat absensi berdasarkan user_id, urutkan dari terbaru
-    $history = Attendance::where('user_id', $user->id)
-        ->orderBy('date', 'desc')
-        ->get();
+    // Ambil parameter start_date dan end_date dari request
+    $startDate = $request->input('start_date');
+    $endDate = $request->input('end_date');
+
+    // Query dasar untuk mendapatkan riwayat absensi
+    $query = Attendance::where('user_id', $user->id)
+        ->orderBy('date', 'desc');
+
+    // Filter berdasarkan rentang tanggal jika start_date dan end_date disertakan
+    if ($startDate && $endDate) {
+        $query->whereBetween('date', [$startDate, $endDate]);
+    }
+
+    // Eksekusi query
+    $history = $query->get();
 
     // Jika tidak ada riwayat absensi
     if ($history->isEmpty()) {
@@ -73,5 +82,4 @@ class AttendanceController extends Controller
         'data' => $history
     ], 200);
 }
-
 }
