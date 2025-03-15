@@ -29,4 +29,36 @@ class PermintaanIzin extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    protected static function boot()
+{
+    parent::boot();
+
+    // Validasi sebelum menyimpan data
+    static::saving(function ($permintaanIzin) {
+        if ($permintaanIzin->tanggal_mulai > $permintaanIzin->tanggal_selesai) {
+            throw new \Exception('Tanggal mulai tidak boleh lebih besar dari tanggal selesai.');
+        }
+    });
+
+    // Event ketika data di-update
+    static::updated(function ($permintaanIzin) {
+        if ($permintaanIzin->status == true) {
+            $startDate = $permintaanIzin->tanggal_mulai;
+            $endDate = $permintaanIzin->tanggal_selesai;
+
+            while ($startDate <= $endDate) {
+                Attendance::create([
+                    'user_id' => $permintaanIzin->user_id,
+                    'date' => $startDate,
+                    'status' => 'izin',
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+
+                $startDate = date('Y-m-d', strtotime($startDate . ' +1 day'));
+            }
+        }
+    });
+}
 }
