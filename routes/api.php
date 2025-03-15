@@ -11,6 +11,8 @@ use App\Http\Controllers\AttendanceController;
 Route::post('login', [AuthController::class, 'login']);
 
 Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/logout', [AuthController::class, 'logout']);
+
     Route::get('/orders', [OrdersController::class, 'index']);
     Route::post('/orders/{id}/take', [OrdersController::class, 'takeOrder']); // ✅ Route untuk mengambil order
     Route::get('/orders/ongoing', [OrdersController::class, 'getOngoingOrders']); // ✅ Pastikan pakai OrdersController
