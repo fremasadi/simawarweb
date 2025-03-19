@@ -75,9 +75,12 @@ public static function getNavigationGroup(): ?string
                     ->label('Alamat')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('phone')
+                    ->label('No.Telefon')
                     ->searchable(),
-                Tables\Columns\ImageColumn::make('image'),
-                Tables\Columns\TextColumn::make('role'),
+                Tables\Columns\ImageColumn::make('image')
+                    ->label('Foto'),
+                Tables\Columns\TextColumn::make('role')
+                    ->label('Peran'),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
