@@ -51,6 +51,7 @@ public static function getNavigationGroup(): ?string
                     ->tel()
                     ->maxLength(255),
                 Forms\Components\FileUpload::make('image')
+                    ->label('Foto')
                     ->image(),
                     Select::make('role')
                     ->label('Peran')
