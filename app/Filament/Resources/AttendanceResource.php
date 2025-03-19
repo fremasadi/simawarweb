@@ -65,11 +65,14 @@ class AttendanceResource extends Resource
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('date')
+                    ->label('Tanggal Absen')
                     ->date()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('check_in'),
+                Tables\Columns\TextColumn::make('check_in')
+                    ->label('Jam Masuk'),
                 Tables\Columns\TextColumn::make('status'),
                 Tables\Columns\TextColumn::make('late_minutes')
+                    ->label('Terlambat(menit)')
                     ->numeric()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
