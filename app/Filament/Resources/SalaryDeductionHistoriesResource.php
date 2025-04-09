@@ -126,8 +126,8 @@ class SalaryDeductionHistoriesResource extends Resource
     {
         return [
             'index' => Pages\ListSalaryDeductionHistories::route('/'),
-            'create' => Pages\CreateSalaryDeductionHistories::route('/create'),
-            'edit' => Pages\EditSalaryDeductionHistories::route('/{record}/edit'),
+            // 'create' => Pages\CreateSalaryDeductionHistories::route('/create'),
+            // 'edit' => Pages\EditSalaryDeductionHistories::route('/{record}/edit'),
         ];
     }
 }
