@@ -82,10 +82,10 @@ class LatestOrders extends BaseWidget
     protected function getTableActions(): array
     {
         return [
-            Tables\Actions\Action::make('view')
-                ->label('Lihat')
-                ->icon('heroicon-m-eye')
-                ->url(fn (Order $record): string => '#'), // Gunakan # sebagai placeholder sementara
+            // Tables\Actions\Action::make('view')
+            //     ->label('Lihat')
+            //     ->icon('heroicon-m-eye')
+            //     ->url(fn (Order $record): string => '#'), // Gunakan # sebagai placeholder sementara
 
                 // ->url(fn (Order $record): string => route('filament.admin.resources.orders.view', $record)),
         ];
