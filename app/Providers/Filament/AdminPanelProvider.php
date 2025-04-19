@@ -62,6 +62,8 @@ class AdminPanelProvider extends PanelProvider
             ->widgets([
                 Widgets\AccountWidget::class,
                 Widgets\FilamentInfoWidget::class,
+                \App\Filament\Widgets\OrderStatusChart::class,
+
             ])
             ->middleware([
                 EncryptCookies::class,

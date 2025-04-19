@@ -4,7 +4,6 @@ namespace App\Filament\Pages;
 
 use App\Filament\Widgets\AttendanceOverview;
 use App\Filament\Widgets\LatestOrders;
-use App\Filament\Widgets\OrderStatusChart;
 use App\Filament\Widgets\SalaryStats;
 use App\Filament\Widgets\StatsOverview;
 use App\Filament\Widgets\UserRoleChart;
@@ -37,7 +36,7 @@ class Dashboard extends BaseDashboard
     {
         return [
             StatsOverview::class,
-            OrderStatusChart::class,
+            TaskStatusChart::class, // Tambahkan ini
             AttendanceOverview::class,
             SalaryStats::class,
             LatestOrders::class,
