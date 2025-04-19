@@ -85,7 +85,9 @@ class LatestOrders extends BaseWidget
             Tables\Actions\Action::make('view')
                 ->label('Lihat')
                 ->icon('heroicon-m-eye')
-                ->url(fn (Order $record): string => route('filament.admin.resources.orders.view', $record)),
+                ->url(fn (Order $record): string => '#'), // Gunakan # sebagai placeholder sementara
+
+                // ->url(fn (Order $record): string => route('filament.admin.resources.orders.view', $record)),
         ];
     }
     
