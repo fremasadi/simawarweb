@@ -19,9 +19,14 @@ class AuthController extends Controller
         // Cari user berdasarkan email
         $user = User::where('email', $request->email)->first();
 
-        // Cek apakah user ada dan password sesuai
-        if (!$user || !Hash::check($request->password, $user->password)) {
-            return response()->json(['message' => 'Email atau password salah'], 401);
+        // Jika user tidak ditemukan
+        if (!$user) {
+            return response()->json(['message' => 'Email tidak ditemukan'], 404);
+        }
+
+        // Jika password salah
+        if (!Hash::check($request->password, $user->password)) {
+            return response()->json(['message' => 'Password salah'], 401);
         }
 
         // Cek apakah user memiliki role "karyawan"
