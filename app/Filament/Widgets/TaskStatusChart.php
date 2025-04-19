@@ -2,7 +2,7 @@
 
 namespace App\Filament\Widgets;
 
-use App\Models\YourModelName; // Ganti dengan model sebenarnya
+use App\Models\Order; // Ganti dengan model sebenarnya
 use Carbon\Carbon;
 use Filament\Widgets\LineChartWidget;
 use Illuminate\Support\Facades\DB;
