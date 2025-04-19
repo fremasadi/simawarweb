@@ -16,7 +16,7 @@ class TaskStatusChart extends LineChartWidget
         $startOfMonth = Carbon::now()->startOfMonth();
         $endOfMonth = Carbon::now()->endOfMonth();
 
-        $data = YourModelName::select(
+        $data = Order::select(
                 DB::raw("DATE(created_at) as date"),
                 DB::raw("status"),
                 DB::raw("count(*) as total")
