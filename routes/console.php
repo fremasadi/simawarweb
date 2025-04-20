@@ -216,10 +216,8 @@ Artisan::command('salary:generate', function () {
 
             // Cek apakah sudah ada gaji untuk periode ini
             $existingSalary = Salary::where('user_id', $user->id)
-                ->where(function ($query) use ($payPeriodStart, $payPeriodEnd) {
-                    $query->whereBetween('pay_date', [$payPeriodStart, $payPeriodEnd])
-                          ->orWhere('pay_date', $payPeriodStart);
-                })
+                ->where('period_start', $payPeriodStart)
+                ->where('period_end', $payPeriodEnd)
                 ->first();
 
             if ($existingSalary) {
