@@ -154,6 +154,7 @@ Artisan::command('salary:calculate-deductions', function () {
 })->purpose('Hitung pengurangan gaji berdasarkan data absensi, perbarui data gaji, dan simpan riwayat potongan');
 
 // Perintah untuk generate gaji karyawan
+// Perintah untuk generate gaji karyawan
 Artisan::command('salary:generate', function () {
     $this->info("Memulai proses generate gaji...");
     
@@ -214,10 +215,10 @@ Artisan::command('salary:generate', function () {
                 $nextPayDate = $now->copy()->addMonth()->startOfMonth();
             }
 
-            // Cek apakah sudah ada gaji untuk periode ini
+            // Cek apakah sudah ada gaji untuk periode ini berdasarkan pay_date saja
+            // Perubahan: Tidak menggunakan period_start dan period_end karena tidak ada di tabel
             $existingSalary = Salary::where('user_id', $user->id)
-                ->where('period_start', $payPeriodStart)
-                ->where('period_end', $payPeriodEnd)
+                ->where('pay_date', $nextPayDate)
                 ->first();
 
             if ($existingSalary) {
@@ -228,16 +229,17 @@ Artisan::command('salary:generate', function () {
 
             // Buat record gaji baru
             DB::transaction(function () use ($user, $salarySetting, $nextPayDate, $payPeriodStart, $payPeriodEnd) {
-                Salary::create([
+                // Perubahan: Menghapus period_start dan period_end dari data yang disimpan
+                $salary = Salary::create([
                     'user_id' => $user->id,
                     'salary_setting_id' => $salarySetting->id,
                     'total_salary' => $salarySetting->salary,
                     'total_deduction' => 0,
                     'pay_date' => $nextPayDate,
-                    'period_start' => $payPeriodStart,
-                    'period_end' => $payPeriodEnd,
                     'status' => 'pending',
-                    'note' => "Auto-generated untuk periode {$salarySetting->periode} pada " . Carbon::now()->format('Y-m-d H:i:s')
+                    'note' => "Auto-generated untuk periode {$salarySetting->periode} dari " . 
+                            $payPeriodStart->format('Y-m-d') . " hingga " . 
+                            $payPeriodEnd->format('Y-m-d')
                 ]);
             });
 
