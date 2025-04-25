@@ -56,14 +56,37 @@ Artisan::command('salary:calculate-deductions', function () {
     try {
         foreach ($groupedAttendances as $userId => $userAttendances) {
             // Ambil data salary berdasarkan user_id untuk bulan ini
+            // FIX: Modifikasi pencarian gaji untuk mendukung gaji bulanan dengan pay_date di bulan berikutnya
             $salary = Salary::where('user_id', $userId)
-                ->whereRaw("DATE_FORMAT(pay_date, '%Y-%m') = ?", [$currentMonth])
+                ->where(function($query) use ($currentMonth) {
+                    // 1. Pay date di bulan ini, atau
+                    $query->whereRaw("DATE_FORMAT(pay_date, '%Y-%m') = ?", [$currentMonth])
+                          // 2. Pay date di awal bulan berikutnya (untuk gaji bulanan)
+                          ->orWhere(function($q) use ($currentMonth) {
+                              // Ambil tanggal 1 bulan berikutnya
+                              $nextMonthFirstDay = Carbon::createFromFormat('Y-m', $currentMonth)
+                                                  ->addMonth()
+                                                  ->startOfMonth()
+                                                  ->format('Y-m-d');
+                              $q->where('pay_date', $nextMonthFirstDay);
+                          });
+                })
                 ->first();
 
+            // Debugging: Tampilkan informasi pencarian salary
+            $this->info("Mencari gaji untuk user ID {$userId} periode {$currentMonth}");
+            $nextMonthFirstDay = Carbon::createFromFormat('Y-m', $currentMonth)
+                                ->addMonth()
+                                ->startOfMonth()
+                                ->format('Y-m-d');
+            $this->info("Atau dengan pay_date: {$nextMonthFirstDay}");
+            
             if (!$salary) {
                 $this->warn("Tidak ada data gaji untuk user_id {$userId} pada periode {$currentMonth}. Lewati perhitungan.");
                 continue;
             }
+            
+            $this->info("Ditemukan data gaji dengan ID: {$salary->id}, pay_date: {$salary->pay_date}");
 
             // Ambil pengaturan gaji berdasarkan salary_setting_id
             $salarySetting = SalarySetting::find($salary->salary_setting_id);
@@ -153,7 +176,6 @@ Artisan::command('salary:calculate-deductions', function () {
     }
 })->purpose('Hitung pengurangan gaji berdasarkan data absensi, perbarui data gaji, dan simpan riwayat potongan');
 
-// Perintah untuk generate gaji karyawan
 // Perintah untuk generate gaji karyawan
 Artisan::command('salary:generate', function () {
     $this->info("Memulai proses generate gaji...");
