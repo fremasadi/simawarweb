@@ -19,6 +19,7 @@ use Filament\Forms\Components\Grid;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Get;
+use Filament\Forms\Components\FileUpload;
 
 class OrderResource extends Resource
 {
@@ -48,30 +49,25 @@ class OrderResource extends Resource
     {
         return $form
             ->schema([
-                Select::make('image_id')
-                ->label('Pilih Gambar')
-                ->options(ImageModel::pluck('name', 'id'))
-                ->searchable()
-                ->preload()
-                ->reactive()
-                ->afterStateUpdated(function ($state, callable $set) {
-                    if ($state) {
-                        $image = ImageModel::find($state);
-                        $set('selected_image', $image?->image_url);
-                    } else {
-                        $set('selected_image', null);
-                    }
-                }),
-
-                Forms\Components\Placeholder::make('preview')
-                ->label('Preview Gambar')
-                ->content(function ($get) {
-                    $imageUrl = $get('selected_image');
-                    if (!$imageUrl) return 'Tidak ada gambar yang dipilih';
-
-                    return view('components.image-preview-content', ['imageUrl' => $imageUrl]);
-                })
-                ->columnSpanFull(),
+                FileUpload::make('images')
+                ->label('Upload Gambar')
+                ->multiple()
+                ->image()
+                ->imageResizeMode('cover')
+                ->imageCropAspectRatio('16:9') // Opsional
+                ->imageResizeTargetWidth('1920') // Opsional
+                ->imageResizeTargetHeight('1080') // Opsional
+                ->columnSpanFull()
+                ->disk('public')
+                ->directory('order_images')
+                ->visibility('public') // Penting untuk akses publik
+                ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
+                ->maxFiles(10) // Batasi jumlah file
+                ->maxSize(5120) // 5MB max per file
+                ->enableDownload()
+                ->enableOpen()
+                ->previewable(true),
+            
                 Forms\Components\TextInput::make('name')
                     ->label('Nama Pemesanan')
                     ->required()

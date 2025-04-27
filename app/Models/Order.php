@@ -25,6 +25,7 @@ class Order extends Model
         'size',
         'status', // Kolom status dengan default value
         'ditugaskan_ke',
+        'images', // Tambahkan kolom images ke fillable
     ];
 
     /**
@@ -38,6 +39,8 @@ class Order extends Model
 
     protected $casts = [
         'size' => 'array',
+        'images' => 'array',
+
     ];
 
     /**
@@ -74,5 +77,13 @@ class Order extends Model
 {
     return $this->belongsTo(User::class, 'ditugaskan_ke');
 }
+
+protected function images(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value) => $value ? json_decode($value, true) : [],
+            set: fn ($value) => is_array($value) ? json_encode($value) : $value,
+        );
+    }
 
 }
