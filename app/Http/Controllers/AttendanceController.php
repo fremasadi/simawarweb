@@ -35,33 +35,41 @@ class AttendanceController extends Controller
     }
 
     // Get current time
-    $currentTime = Carbon::now();
-    $currentTimeString = $currentTime->format('H:i:s');
+    $now = Carbon::now();
     
-    // Parse store open and close times
-    $openTime = Carbon::createFromFormat('H:i:s', $storeSetting->open_time);
-    $closeTime = Carbon::createFromFormat('H:i:s', $storeSetting->close_time);
+    // Create Carbon instances for store open and close times today
+    $openTimeToday = Carbon::parse($today . ' ' . $storeSetting->open_time);
+    $closeTimeToday = Carbon::parse($today . ' ' . $storeSetting->close_time);
+    
+    // If close time is on the next day (e.g., overnight operation)
+    if ($closeTimeToday->lt($openTimeToday)) {
+        $closeTimeToday->addDay();
+    }
     
     // Check if current time is within store operating hours
-    if ($currentTimeString < $storeSetting->open_time || $currentTimeString > $storeSetting->close_time) {
+    if ($now->lt($openTimeToday)) {
         return response()->json([
-            'message' => 'Absensi hanya dapat dilakukan pada jam operasional toko (' . 
-                         $storeSetting->open_time . ' - ' . $storeSetting->close_time . ')!'
+            'message' => 'Toko belum buka! Jam buka toko adalah ' . $storeSetting->open_time
+        ], 400);
+    }
+    
+    if ($now->gt($closeTimeToday)) {
+        return response()->json([
+            'message' => 'Toko sudah tutup! Jam operasional toko adalah ' . 
+                         $storeSetting->open_time . ' - ' . $storeSetting->close_time
         ], 400);
     }
 
-    // Calculate late minutes based on store open time
-    $openTimeToday = Carbon::today()->setTimeFromTimeString($storeSetting->open_time);
+    // Calculate late minutes
     $lateMinutes = 0;
-
-    if ($currentTime->greaterThan($openTimeToday)) {
-        $lateMinutes = round($openTimeToday->diffInMinutes($currentTime)); // Membulatkan hasil keterlambatan
+    if ($now->gt($openTimeToday)) {
+        $lateMinutes = round($now->diffInMinutes($openTimeToday));
     }
 
     $attendance = Attendance::create([
         'user_id'       => $user->id,
         'date'          => $today,
-        'check_in'      => $currentTime->format('H:i:s'),
+        'check_in'      => $now->format('H:i:s'),
         'status'        => $lateMinutes > 0 ? 'telat' : 'hadir',
         'late_minutes'  => $lateMinutes,
     ]);
