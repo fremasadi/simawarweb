@@ -29,18 +29,39 @@ class AttendanceController extends Controller
         return response()->json(['message' => 'Pengaturan toko tidak ditemukan!'], 500);
     }
 
-    $openTime = Carbon::today()->setTimeFromTimeString($storeSetting->open_time);
-    $checkInTime = Carbon::now();
+    // Check if store is open based on is_open flag
+    if (!$storeSetting->is_open) {
+        return response()->json(['message' => 'Toko sedang tutup!'], 400);
+    }
+
+    // Get current time
+    $currentTime = Carbon::now();
+    $currentTimeString = $currentTime->format('H:i:s');
+    
+    // Parse store open and close times
+    $openTime = Carbon::createFromFormat('H:i:s', $storeSetting->open_time);
+    $closeTime = Carbon::createFromFormat('H:i:s', $storeSetting->close_time);
+    
+    // Check if current time is within store operating hours
+    if ($currentTimeString < $storeSetting->open_time || $currentTimeString > $storeSetting->close_time) {
+        return response()->json([
+            'message' => 'Absensi hanya dapat dilakukan pada jam operasional toko (' . 
+                         $storeSetting->open_time . ' - ' . $storeSetting->close_time . ')!'
+        ], 400);
+    }
+
+    // Calculate late minutes based on store open time
+    $openTimeToday = Carbon::today()->setTimeFromTimeString($storeSetting->open_time);
     $lateMinutes = 0;
 
-    if ($checkInTime->greaterThan($openTime)) {
-        $lateMinutes = round($openTime->diffInMinutes($checkInTime)); // 🔥 Membulatkan hasil keterlambatan
+    if ($currentTime->greaterThan($openTimeToday)) {
+        $lateMinutes = round($openTimeToday->diffInMinutes($currentTime)); // Membulatkan hasil keterlambatan
     }
 
     $attendance = Attendance::create([
         'user_id'       => $user->id,
         'date'          => $today,
-        'check_in'      => $checkInTime->format('H:i:s'),
+        'check_in'      => $currentTime->format('H:i:s'),
         'status'        => $lateMinutes > 0 ? 'telat' : 'hadir',
         'late_minutes'  => $lateMinutes,
     ]);
