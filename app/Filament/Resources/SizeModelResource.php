@@ -31,11 +31,11 @@ class SizeModelResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
-    protected static ?string $navigationLabel = 'Gambar Ukuran';
+    protected static ?string $navigationLabel = 'Ukuran Model';
 
     public static function getModelLabel(): string
     {
-        return 'Gambar Ukuran';
+        return 'Ukuran Model';
     }
 
     public static function getPluralModelLabel(): string
@@ -54,6 +54,7 @@ class SizeModelResource extends Resource
     return $form
         ->schema([
             TextInput::make('name')
+                ->label('Nama Model')
                 ->required()
                 ->maxLength(255),
 
