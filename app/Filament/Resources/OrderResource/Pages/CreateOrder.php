@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\OrderResource\Pages;
 
 use App\Filament\Resources\OrderResource;
-use Filament\Actions;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Support\Facades\Http;
 
@@ -16,11 +15,17 @@ class CreateOrder extends CreateRecord
         $record = $this->record;
 
         $phone = $record->phone;
-        $message = "Terima kasih {$record->name} telah memesan! Pesanan Anda akan kami proses.";
+
+        // ✅ Ubah 08xxxxx menjadi 628xxxxx
+        if (substr($phone, 0, 1) === '0') {
+            $phone = '62' . substr($phone, 1);
+        }
+
+        $message = "Terima kasih {$record->name} telah memesan! Pesanan Anda akan segera kami proses.";
 
         try {
             $response = Http::withHeaders([
-                'Authorization' => 'YuHu739HMs1gtWXzD1X7',
+                'Authorization' => 'YuHu739HMs1gtWXzD1X7', // API Key Fonnte kamu
             ])->post('https://api.fonnte.com/send', [
                 'target' => $phone,
                 'message' => $message,
@@ -28,10 +33,10 @@ class CreateOrder extends CreateRecord
             ]);
 
             if ($response->failed()) {
-                logger()->error('Gagal kirim WA: ' . $response->body());
+                logger()->error('Gagal kirim WhatsApp: ' . $response->body());
             }
         } catch (\Exception $e) {
-            logger()->error('Error kirim WA: ' . $e->getMessage());
+            logger()->error('Error kirim WhatsApp: ' . $e->getMessage());
         }
     }
 }
