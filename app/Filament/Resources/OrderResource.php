@@ -134,6 +134,28 @@ class OrderResource extends Resource
                     ];
                 })
                 ->columnSpanFull()
+                ->afterCreate(function ($record, $data) {
+                    // Setelah data berhasil disimpan ke database
+        
+                    $phone = $record->phone; // Ambil phone dari record
+                    $message = "Terima kasih telah memesan, pesanan Anda akan segera kami proses.";
+        
+                    try {
+                        $response = Http::withHeaders([
+                            'Authorization' => 'YuHu739HMs1gtWXzD1X7',
+                        ])->post('https://api.fonnte.com/send', [
+                            'target' => $phone,
+                            'message' => $message,
+                            'countryCode' => '62',
+                        ]);
+        
+                        if ($response->failed()) {
+                            logger()->error('Gagal mengirim WhatsApp: ' . $response->body());
+                        }
+                    } catch (\Exception $e) {
+                        logger()->error('Error mengirim WhatsApp: ' . $e->getMessage());
+                    }
+                })
             ]);
     }
 
