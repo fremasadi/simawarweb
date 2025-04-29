@@ -44,10 +44,10 @@ class SalarySettingResource extends Resource
     {
         return $form
             ->schema([
-                TextInput::make('name')
-                ->label('Nama Setting Gaji')
-                ->required()
-                ->maxLength(255),
+                // TextInput::make('name')
+                // ->label('Nama Setting Gaji')
+                // ->required()
+                // ->maxLength(255),
 
             TextInput::make('salary')
                 ->label('Gaji Pokok')
@@ -92,9 +92,9 @@ class SalarySettingResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('name')
-                    ->label('Nama Setting Gaji')
-                    ->searchable(),
+                // Tables\Columns\TextColumn::make('name')
+                //     ->label('Nama Setting Gaji')
+                //     ->searchable(),
                 Tables\Columns\TextColumn::make('salary')
                     ->label('Gaji Pokok')
                     ->numeric()
@@ -109,10 +109,10 @@ class SalarySettingResource extends Resource
                     ->label('Potongan Jika Izin')
                     ->numeric()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('deduction_per_minute')
-                    ->label('Potongan Telat Permenit')
-                    ->numeric()
-                    ->sortable(),
+                // Tables\Columns\TextColumn::make('deduction_per_minute')
+                //     ->label('Potongan Telat Permenit')
+                //     ->numeric()
+                //     ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
