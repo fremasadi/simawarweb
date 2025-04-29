@@ -60,9 +60,9 @@ class SalaryResource extends Resource
                     ->required(),
                 // Forms\Components\Textarea::make('note')
                 //     ->columnSpanFull(),
-                Forms\Components\Placeholder::make('pay_date')
+                Forms\Components\DatePicker::make('pay_date')
                     ->label('Tanggal Pembayaran')
-                    ->content(fn ($record) => $record->pay_date?->format('d-m-Y') ?? '-'),
+                    ->disabled(),
             ]);
     }
 
