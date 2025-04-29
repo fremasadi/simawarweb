@@ -56,14 +56,14 @@ class SalarySettingResource extends Resource
                 ->prefix('Rp')
                 ->rules(['min:0']),
 
-            Select::make('periode')
-                ->label('Periode Penggajian')
-                ->options([
-                    'daily' => 'Harian',
-                    'weekly' => 'Mingguan',
-                    'monthly' => 'Bulanan',
-                ])
-                ->required(),
+            // Select::make('periode')
+            //     ->label('Periode Penggajian')
+            //     ->options([
+            //         'daily' => 'Harian',
+            //         'weekly' => 'Mingguan',
+            //         'monthly' => 'Bulanan',
+            //     ])
+            //     ->required(),
 
             TextInput::make('reduction_if_absent')
                 ->label('Potongan Jika Tidak Hadir')
@@ -72,12 +72,12 @@ class SalarySettingResource extends Resource
                 ->prefix('Rp')
                 ->rules(['min:0']),
 
-            TextInput::make('permit_reduction')
-                ->label('Potongan Jika Izin')
-                ->numeric()
-                ->required()
-                ->prefix('Rp')
-                ->rules(['min:0']),
+            // TextInput::make('permit_reduction')
+            //     ->label('Potongan Jika Izin')
+            //     ->numeric()
+            //     ->required()
+            //     ->prefix('Rp')
+            //     ->rules(['min:0']),
             Forms\Components\TextInput::make('deduction_per_minute')
                 ->label('Potongan Telat Permenit')
                 ->numeric()
@@ -113,14 +113,14 @@ class SalarySettingResource extends Resource
                 //     ->label('Potongan Telat Permenit')
                 //     ->numeric()
                 //     ->sortable(),
-                Tables\Columns\TextColumn::make('created_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('updated_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                // Tables\Columns\TextColumn::make('created_at')
+                //     ->dateTime()
+                //     ->sortable()
+                //     ->toggleable(isToggledHiddenByDefault: true),
+                // Tables\Columns\TextColumn::make('updated_at')
+                //     ->dateTime()
+                //     ->sortable()
+                //     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 //
