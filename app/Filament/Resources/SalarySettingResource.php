@@ -105,14 +105,14 @@ class SalarySettingResource extends Resource
                     ->label('Potongan Jika Tidak Hadir')
                     ->numeric()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('permit_reduction')
-                    ->label('Potongan Jika Izin')
-                    ->numeric()
-                    ->sortable(),
-                // Tables\Columns\TextColumn::make('deduction_per_minute')
-                //     ->label('Potongan Telat Permenit')
+                // Tables\Columns\TextColumn::make('permit_reduction')
+                //     ->label('Potongan Jika Izin')
                 //     ->numeric()
                 //     ->sortable(),
+                Tables\Columns\TextColumn::make('deduction_per_minute')
+                    ->label('Potongan Telat Permenit')
+                    ->numeric()
+                    ->sortable(),
                 // Tables\Columns\TextColumn::make('created_at')
                 //     ->dateTime()
                 //     ->sortable()
