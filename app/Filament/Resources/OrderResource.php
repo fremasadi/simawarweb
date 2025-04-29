@@ -20,6 +20,10 @@ use Filament\Forms\Components\Section;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Get;
 use Filament\Forms\Components\FileUpload;
+use App\Filament\Components\PortraitImageUpload;
+use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Actions\Action;
+use Filament\Forms\Components\Group;
 
 class OrderResource extends Resource
 {
@@ -49,25 +53,30 @@ class OrderResource extends Resource
     {
         return $form
             ->schema([
-                FileUpload::make('images')
-                ->label('Upload Gambar')
-                ->multiple()
-                ->image()
-                ->imageResizeMode('cover')
-                ->imageCropAspectRatio('16:9') // Opsional
-                ->imageResizeTargetWidth('1920') // Opsional
-                ->imageResizeTargetHeight('1080') // Opsional
-                ->columnSpanFull()
-                ->disk('public')
-                ->directory('order_images')
-                ->visibility('public') // Penting untuk akses publik
-                ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
-                ->maxFiles(10) // Batasi jumlah file
-                ->maxSize(5120) // 5MB max per file
-                ->enableDownload()
-                ->enableOpen()
-                ->previewable(true),
-            
+                Repeater::make('images')
+                    ->label('Foto Model')
+                    ->schema([
+                        FileUpload::make('photo')
+                            ->label('Photo')
+                            ->image()
+                            ->imagePreviewHeight('120') // Ukuran preview kecil
+                            ->imageCropAspectRatio('1:1') // Jadi persegi
+                            ->imageResizeMode('cover')
+                            ->disk('public')
+                            ->directory('order_images')
+                            ->visibility('public')
+                            ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
+                            ->enableOpen()
+                            ->previewable(true),
+                    ])
+                    ->addActionLabel('Tambah') // Tombol tambah yang bisa diklik
+                    ->columnSpanFull()
+                    ->grid(3) // Menampilkan dalam bentuk grid
+                    ->defaultItems(0) // Tidak ada data awal
+                    ->reorderable()
+                    ->collapsible(false)
+                    ->createItemButtonLabel('Tambah')
+                    ->columns(1),
                 Forms\Components\TextInput::make('name')
                     ->label('Nama Pemesanan')
                     ->required()
