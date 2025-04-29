@@ -56,7 +56,12 @@ class SalaryResource extends Resource
                     ->required()
                     ->numeric()
                     ->default(0.00),
-                Forms\Components\TextInput::make('status')
+                    Forms\Components\Select::make('status')
+                    ->label('Status Pembayaran')
+                    ->options([
+                        'pending' => 'Tertunda',
+                        'done' => 'Selesai',
+                    ])
                     ->required(),
                 // Forms\Components\Textarea::make('note')
                 //     ->columnSpanFull(),
