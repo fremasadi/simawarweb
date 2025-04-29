@@ -99,8 +99,8 @@ class SalarySettingResource extends Resource
                     ->label('Gaji Pokok')
                     ->numeric()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('periode')
-                    ->label('Periode Penggajian'),
+                // Tables\Columns\TextColumn::make('periode')
+                //     ->label('Periode Penggajian'),
                 Tables\Columns\TextColumn::make('reduction_if_absent')
                     ->label('Potongan Jika Tidak Hadir')
                     ->numeric()
