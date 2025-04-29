@@ -41,25 +41,28 @@ class SalaryResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\Select::make('user_id')
-                    ->relationship('user', 'name')
-                    ->required(),
-                Forms\Components\Select::make('salary_setting_id')
-                    ->relationship('salarySetting', 'name')
-                    ->required(),
+                Forms\Components\Placeholder::make('user_name')
+                    ->label('Nama Pengguna')
+                    ->content(fn ($record) => $record->user?->name ?? '-'),
+                // Forms\Components\Select::make('salary_setting_id')
+                //     ->relationship('salarySetting', 'name')
+                //     ->required(),
                 Forms\Components\TextInput::make('total_salary')
+                    ->label('Total gaji')
                     ->required()
                     ->numeric(),
                 Forms\Components\TextInput::make('total_deduction')
+                    ->label('Total Potongan')
                     ->required()
                     ->numeric()
                     ->default(0.00),
                 Forms\Components\TextInput::make('status')
                     ->required(),
-                Forms\Components\Textarea::make('note')
-                    ->columnSpanFull(),
-                Forms\Components\DatePicker::make('pay_date')
-                    ->required(),
+                // Forms\Components\Textarea::make('note')
+                //     ->columnSpanFull(),
+                Forms\Components\Placeholder::make('pay_date')
+                    ->label('Tanggal Pembayaran')
+                    ->content(fn ($record) => $record->pay_date?->format('d-m-Y') ?? '-'),
             ]);
     }
 
