@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 
 class Order extends Model
 {
@@ -21,11 +22,11 @@ class Order extends Model
         'phone',
         'image_id',
         'quantity',
-        'sizemodel_id', // Tambahkan sizemodel_id ke fillable
+        'sizemodel_id',
         'size',
-        'status', // Kolom status dengan default value
+        'status',
         'ditugaskan_ke',
-        'images', // Tambahkan kolom images ke fillable
+        'images',
     ];
 
     /**
@@ -37,10 +38,14 @@ class Order extends Model
         'status' => 'ditugaskan', // Default value untuk status
     ];
 
+    /**
+     * Konfigurasi casting atribut.
+     *
+     * @var array
+     */
     protected $casts = [
         'size' => 'array',
         'images' => 'array',
-
     ];
 
     /**
@@ -73,17 +78,16 @@ class Order extends Model
         return $this->belongsTo(ImageModel::class, 'image_id');
     }
 
+    /**
+     * Relasi ke model User.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function user()
-{
-    return $this->belongsTo(User::class, 'ditugaskan_ke');
-}
-
-protected function images(): Attribute
     {
-        return Attribute::make(
-            get: fn ($value) => $value ? json_decode($value, true) : [],
-            set: fn ($value) => is_array($value) ? json_encode($value) : $value,
-        );
+        return $this->belongsTo(User::class, 'ditugaskan_ke');
     }
 
+    // Remove the images Attribute method as it conflicts with the $casts definition
+    // Laravel's automatic casting will handle the JSON conversion
 }

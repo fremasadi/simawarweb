@@ -33,12 +33,10 @@ class OrdersController extends Controller
 
         // Format data agar images menjadi URL lengkap dan sizemodel_id menjadi nama
         $orders = $orders->map(function ($order) {
-            // Parse images JSON array
+            // Prepare image URLs
             $imageUrls = [];
-            if ($order->images) {
-                // Laravel automatically decodes JSON columns, so no need for json_decode
-                $imagePaths = $order->images;
-                foreach ($imagePaths as $path) {
+            if (!empty($order->images) && is_array($order->images)) {
+                foreach ($order->images as $path) {
                     $imageUrls[] = asset('storage/' . $path);
                 }
             }
@@ -131,12 +129,10 @@ class OrdersController extends Controller
 
         // Format data agar sesuai kebutuhan
         $formattedOrders = $orders->map(function ($order) {
-            // Parse images JSON array
+            // Prepare image URLs
             $imageUrls = [];
-            if ($order->images) {
-                // Laravel automatically decodes JSON columns, so no need for json_decode
-                $imagePaths = $order->images;
-                foreach ($imagePaths as $path) {
+            if (!empty($order->images) && is_array($order->images)) {
+                foreach ($order->images as $path) {
                     $imageUrls[] = asset('storage/' . $path);
                 }
             }
@@ -219,12 +215,10 @@ class OrdersController extends Controller
 
         // Format data
         $formattedOrders = $orders->map(function ($order) {
-            // Parse images JSON array
+            // Prepare image URLs
             $imageUrls = [];
-            if ($order->images) {
-                // Laravel automatically decodes JSON columns, so no need for json_decode
-                $imagePaths = $order->images;
-                foreach ($imagePaths as $path) {
+            if (!empty($order->images) && is_array($order->images)) {
+                foreach ($order->images as $path) {
                     $imageUrls[] = asset('storage/' . $path);
                 }
             }
