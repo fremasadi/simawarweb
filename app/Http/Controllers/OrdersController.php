@@ -13,6 +13,7 @@ class OrdersController extends Controller
 {
     $user = $request->user();
 
+    // Cek apakah user sedang mengerjakan order
     $hasOngoingOrder = Order::where('ditugaskan_ke', $user->id)
         ->where('status', 'dikerjakan')
         ->exists();
@@ -24,28 +25,40 @@ class OrdersController extends Controller
         ], 403);
     }
 
+    // Ambil order dengan relasi SizeModel
     $orders = Order::with('sizeModel')
         ->where('status', 'ditugaskan')
         ->get();
 
-        $orders = $orders->map(function ($order) {
-            return [
-                'id' => $order->id,
-                'name' => $order->name,
-                'address' => $order->address,
-                'deadline' => $order->deadline,
-                'phone' => $order->phone,
-                'images' => collect($order->images ?? [])->map(fn($img) => asset('storage/' . $img))->values()->all(),
-                'quantity' => $order->quantity,
-                'size_model' => optional($order->sizeModel)->name,
-                'size' => $order->size ?? [], // 👈 perbaikan di sini
-                'status' => $order->status,
-                'ditugaskan_ke' => $order->ditugaskan_ke,
-                'created_at' => $order->created_at,
-                'updated_at' => $order->updated_at,
-            ];
-        });        
-        
+    // Debug logging jika masih error
+    foreach ($orders as $o) {
+        \Log::info('DEBUG ORDER', [
+            'images_type' => gettype($o->images),
+            'size_type' => gettype($o->size),
+            'size_model' => is_object($o->sizeModel) ? get_class($o->sizeModel) : gettype($o->sizeModel),
+        ]);
+    }
+
+    // Format respons
+    $orders = $orders->map(function ($order) {
+        return [
+            'id' => $order->id,
+            'name' => $order->name,
+            'address' => $order->address,
+            'deadline' => $order->deadline,
+            'phone' => $order->phone,
+            'images' => is_array($order->images)
+                ? collect($order->images)->map(fn($img) => asset('storage/' . $img))->values()->all()
+                : [],
+            'quantity' => $order->quantity,
+            'size_model' => optional($order->sizeModel)->name,
+            'size' => is_array($order->size) ? $order->size : [],
+            'status' => $order->status,
+            'ditugaskan_ke' => $order->ditugaskan_ke,
+            'created_at' => $order->created_at,
+            'updated_at' => $order->updated_at,
+        ];
+    });
 
     return response()->json([
         'success' => true,
@@ -53,9 +66,6 @@ class OrdersController extends Controller
         'data' => $orders,
     ]);
 }
-
-
-
     
 
     public function takeOrder($id)
