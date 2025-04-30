@@ -359,3 +359,4 @@ Artisan::command('attendance:check', function () {
     
     return 0;
 })->purpose('Memeriksa dan mengisi absensi otomatis untuk karyawan yang tidak absen');
+
