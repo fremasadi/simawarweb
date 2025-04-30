@@ -26,5 +26,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/attendance/history', [AttendanceController::class, 'history']);
 
     Route::get('/salary-history', [SalaryHistoryController::class, 'index']);
+    Route::get('/salary-deductions/{salary_id}', [SalaryHistoryController::class, 'showDeductions']);
 
 });
