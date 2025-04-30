@@ -36,7 +36,8 @@ class OrdersController extends Controller
             // Parse images JSON array
             $imageUrls = [];
             if ($order->images) {
-                $imagePaths = json_decode($order->images, true);
+                // Laravel automatically decodes JSON columns, so no need for json_decode
+                $imagePaths = $order->images;
                 foreach ($imagePaths as $path) {
                     $imageUrls[] = asset('storage/' . $path);
                 }
@@ -133,7 +134,8 @@ class OrdersController extends Controller
             // Parse images JSON array
             $imageUrls = [];
             if ($order->images) {
-                $imagePaths = json_decode($order->images, true);
+                // Laravel automatically decodes JSON columns, so no need for json_decode
+                $imagePaths = $order->images;
                 foreach ($imagePaths as $path) {
                     $imageUrls[] = asset('storage/' . $path);
                 }
@@ -220,7 +222,8 @@ class OrdersController extends Controller
             // Parse images JSON array
             $imageUrls = [];
             if ($order->images) {
-                $imagePaths = json_decode($order->images, true);
+                // Laravel automatically decodes JSON columns, so no need for json_decode
+                $imagePaths = $order->images;
                 foreach ($imagePaths as $path) {
                     $imageUrls[] = asset('storage/' . $path);
                 }
