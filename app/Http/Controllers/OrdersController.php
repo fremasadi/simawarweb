@@ -11,13 +11,11 @@ class OrdersController extends Controller
 {
     public function index(Request $request)
 {
-    // Ambil user yang sedang login
     $user = $request->user();
 
-    // Cek apakah user memiliki order dengan status "dikerjakan"
     $hasOngoingOrder = Order::where('ditugaskan_ke', $user->id)
         ->where('status', 'dikerjakan')
-        ->exists(); // Cek apakah ada order seperti itu
+        ->exists();
 
     if ($hasOngoingOrder) {
         return response()->json([
@@ -26,12 +24,10 @@ class OrdersController extends Controller
         ], 403);
     }
 
-    // Ambil semua order dengan status "ditugaskan" dan relasi ke ImageModel serta SizeModel
-    $orders = Order::with(['image', 'sizeModel'])
+    $orders = Order::with('sizeModel')
         ->where('status', 'ditugaskan')
         ->get();
 
-    // Format data agar image_id menjadi URL lengkap dan sizemodel_id menjadi nama
     $orders = $orders->map(function ($order) {
         return [
             'id' => $order->id,
@@ -39,23 +35,24 @@ class OrdersController extends Controller
             'address' => $order->address,
             'deadline' => $order->deadline,
             'phone' => $order->phone,
-            'image' => $order->image ? asset('storage/' . $order->image->image) : null, // URL lengkap gambar
+            'images' => collect($order->images)->map(fn($img) => asset('storage/' . $img)),
             'quantity' => $order->quantity,
-            'size_model' => $order->sizeModel ? $order->sizeModel->name : null, // Nama size model
+            'size_model' => optional($order->sizeModel)->name,
             'size' => $order->size,
             'status' => $order->status,
             'ditugaskan_ke' => $order->ditugaskan_ke,
             'created_at' => $order->created_at,
-            'updated_at' => $order->updated_at
+            'updated_at' => $order->updated_at,
         ];
     });
 
     return response()->json([
         'success' => true,
         'message' => 'Data orders berhasil diambil',
-        'data' => $orders
-    ], 200);
+        'data' => $orders,
+    ]);
 }
+
 
 
     
