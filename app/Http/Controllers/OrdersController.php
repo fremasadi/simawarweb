@@ -28,7 +28,7 @@ class OrdersController extends Controller
         ->where('status', 'ditugaskan')
         ->get();
 
-    $orders = $orders->map(function ($order) {
+        $orders = $orders->map(function ($order) {
             return [
                 'id' => $order->id,
                 'name' => $order->name,
@@ -38,13 +38,13 @@ class OrdersController extends Controller
                 'images' => collect($order->images ?? [])->map(fn($img) => asset('storage/' . $img))->values()->all(),
                 'quantity' => $order->quantity,
                 'size_model' => optional($order->sizeModel)->name,
-                'size' => $order->size,
+                'size' => $order->size ?? [], // 👈 perbaikan di sini
                 'status' => $order->status,
                 'ditugaskan_ke' => $order->ditugaskan_ke,
                 'created_at' => $order->created_at,
                 'updated_at' => $order->updated_at,
             ];
-    });
+        });        
         
 
     return response()->json([
