@@ -29,22 +29,23 @@ class OrdersController extends Controller
         ->get();
 
     $orders = $orders->map(function ($order) {
-        return [
-            'id' => $order->id,
-            'name' => $order->name,
-            'address' => $order->address,
-            'deadline' => $order->deadline,
-            'phone' => $order->phone,
-            'images' => collect($order->images)->map(fn($img) => asset('storage/' . $img)),
-            'quantity' => $order->quantity,
-            'size_model' => optional($order->sizeModel)->name,
-            'size' => $order->size,
-            'status' => $order->status,
-            'ditugaskan_ke' => $order->ditugaskan_ke,
-            'created_at' => $order->created_at,
-            'updated_at' => $order->updated_at,
-        ];
+            return [
+                'id' => $order->id,
+                'name' => $order->name,
+                'address' => $order->address,
+                'deadline' => $order->deadline,
+                'phone' => $order->phone,
+                'images' => collect($order->images ?? [])->map(fn($img) => asset('storage/' . $img))->values()->all(),
+                'quantity' => $order->quantity,
+                'size_model' => optional($order->sizeModel)->name,
+                'size' => $order->size,
+                'status' => $order->status,
+                'ditugaskan_ke' => $order->ditugaskan_ke,
+                'created_at' => $order->created_at,
+                'updated_at' => $order->updated_at,
+            ];
     });
+        
 
     return response()->json([
         'success' => true,
