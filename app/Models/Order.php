@@ -10,17 +10,11 @@ class Order extends Model
 {
     use HasFactory;
 
-    /**
-     * Kolom yang dapat diisi secara massal (mass assignable).
-     *
-     * @var array
-     */
     protected $fillable = [
         'name',
         'address',
         'deadline',
         'phone',
-        'image_id',
         'quantity',
         'sizemodel_id',
         'size',
@@ -29,65 +23,35 @@ class Order extends Model
         'images',
     ];
 
-    /**
-     * Nilai default untuk atribut model.
-     *
-     * @var array
-     */
     protected $attributes = [
-        'status' => 'ditugaskan', // Default value untuk status
+        'status' => 'ditugaskan',
     ];
 
-    /**
-     * Konfigurasi casting atribut.
-     *
-     * @var array
-     */
     protected $casts = [
         'size' => 'array',
         'images' => 'array',
     ];
 
-    /**
-     * Relasi ke model SizeModel.
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
-     */
     public function sizeModel()
     {
         return $this->belongsTo(SizeModel::class, 'sizemodel_id');
     }
 
-    /**
-     * Relasi ke model User (ditugaskan_ke).
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
-     */
     public function assignedTo()
     {
         return $this->belongsTo(User::class, 'ditugaskan_ke');
     }
 
-    /**
-     * Relasi ke model ImageModel.
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
-     */
-    public function image()
-    {
-        return $this->belongsTo(ImageModel::class, 'image_id');
-    }
-
-    /**
-     * Relasi ke model User.
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
-     */
     public function user()
     {
         return $this->belongsTo(User::class, 'ditugaskan_ke');
     }
 
-    // Remove the images Attribute method as it conflicts with the $casts definition
-    // Laravel's automatic casting will handle the JSON conversion
+    protected function images(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value) => $value ? json_decode($value, true) : [],
+            set: fn ($value) => is_array($value) ? json_encode($value) : $value,
+        );
+    }
 }

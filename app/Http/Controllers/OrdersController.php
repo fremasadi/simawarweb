@@ -8,15 +8,38 @@ use Illuminate\Support\Facades\Auth;
 
 class OrdersController extends Controller
 {
+    /**
+     * Format data order untuk response JSON.
+     */
+    private function formatOrder($order)
+    {
+        return [
+            'id' => $order->id,
+            'name' => $order->name,
+            'address' => $order->address,
+            'deadline' => $order->deadline,
+            'phone' => $order->phone,
+            'images' => collect($order->images ?? [])->map(fn($img) => asset('storage/' . $img))->values()->all(),
+            'quantity' => $order->quantity,
+            'size_model' => optional($order->sizeModel)->name,
+            'size' => $order->size,
+            'status' => $order->status,
+            'ditugaskan_ke' => $order->ditugaskan_ke,
+            'created_at' => $order->created_at,
+            'updated_at' => $order->updated_at,
+        ];
+    }
+
+    /**
+     * Menampilkan semua order yang siap dikerjakan.
+     */
     public function index(Request $request)
     {
-        // Ambil user yang sedang login
         $user = $request->user();
 
-        // Cek apakah user memiliki order dengan status "dikerjakan"
         $hasOngoingOrder = Order::where('ditugaskan_ke', $user->id)
             ->where('status', 'dikerjakan')
-            ->exists(); // Cek apakah ada order seperti itu
+            ->exists();
 
         if ($hasOngoingOrder) {
             return response()->json([
@@ -25,77 +48,48 @@ class OrdersController extends Controller
             ], 403);
         }
 
-        // Ambil semua order dengan status "ditugaskan" dan relasi ke SizeModel
-        // Tidak perlu relasi image lagi karena menggunakan images JSON
-        $orders = Order::with(['sizeModel'])
+        $orders = Order::with('sizeModel')
             ->where('status', 'ditugaskan')
-            ->get();
-
-        // Format data agar images menjadi URL lengkap dan sizemodel_id menjadi nama
-        $orders = $orders->map(function ($order) {
-            // Prepare image URLs
-            $imageUrls = [];
-            if (!empty($order->images) && is_array($order->images)) {
-                foreach ($order->images as $path) {
-                    $imageUrls[] = asset('storage/' . $path);
-                }
-            }
-
-            return [
-                'id' => $order->id,
-                'name' => $order->name,
-                'address' => $order->address,
-                'deadline' => $order->deadline,
-                'phone' => $order->phone,
-                'images' => $imageUrls, // Array URL lengkap gambar
-                'quantity' => $order->quantity,
-                'size_model' => $order->sizeModel ? $order->sizeModel->name : null, // Nama size model
-                'size' => $order->size,
-                'status' => $order->status,
-                'ditugaskan_ke' => $order->ditugaskan_ke,
-                'created_at' => $order->created_at,
-                'updated_at' => $order->updated_at
-            ];
-        });
+            ->get()
+            ->map(fn($order) => $this->formatOrder($order));
 
         return response()->json([
             'success' => true,
             'message' => 'Data orders berhasil diambil',
-            'data' => $orders
+            'data' => $orders,
         ], 200);
     }
 
+    /**
+     * User mengambil order tertentu.
+     */
     public function takeOrder($id)
     {
-        // Ambil user yang sedang login berdasarkan token
         $user = Auth::user();
-        
+
         if (!$user) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized'
+                'message' => 'Unauthorized',
             ], 401);
         }
 
-        // Cari order berdasarkan ID
         $order = Order::find($id);
 
         if (!$order) {
             return response()->json([
                 'success' => false,
-                'message' => 'Order tidak ditemukan'
+                'message' => 'Order tidak ditemukan',
             ], 404);
         }
 
-        // Pastikan order masih dalam status "ditugaskan"
         if ($order->status !== 'ditugaskan') {
             return response()->json([
                 'success' => false,
-                'message' => 'Order ini sudah diambil atau selesai'
+                'message' => 'Order ini sudah diambil atau selesai',
             ], 400);
         }
 
-        // Update status menjadi "dikerjakan" dan set user yang mengambilnya
         $order->status = 'dikerjakan';
         $order->ditugaskan_ke = $user->id;
         $order->save();
@@ -103,147 +97,97 @@ class OrdersController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Order berhasil diambil dan sedang dikerjakan',
-            'data' => $order
+            'data' => $this->formatOrder($order),
         ], 200);
     }
 
+    /**
+     * Menampilkan order yang sedang dikerjakan oleh user.
+     */
     public function getOngoingOrders(Request $request)
     {
-        // Ambil user yang sedang login
         $user = $request->user();
 
-        // Cari order dengan status "dikerjakan" berdasarkan ditugaskan_ke (user_id)
-        // Ganti relasi image dengan sizeModel saja
-        $orders = Order::with(['sizeModel'])
-                    ->where('ditugaskan_ke', $user->id)
-                    ->where('status', 'dikerjakan')
-                    ->get();
+        $orders = Order::with('sizeModel')
+            ->where('ditugaskan_ke', $user->id)
+            ->where('status', 'dikerjakan')
+            ->get();
 
-        // Jika tidak ada pesanan "dikerjakan"
         if ($orders->isEmpty()) {
             return response()->json([
                 'success' => true,
-                'message' => 'Tidak ada order yang sedang dikerjakan.'
+                'message' => 'Tidak ada order yang sedang dikerjakan.',
+                'data' => [],
             ], 200);
         }
 
-        // Format data agar sesuai kebutuhan
-        $formattedOrders = $orders->map(function ($order) {
-            // Prepare image URLs
-            $imageUrls = [];
-            if (!empty($order->images) && is_array($order->images)) {
-                foreach ($order->images as $path) {
-                    $imageUrls[] = asset('storage/' . $path);
-                }
-            }
-
-            return [
-                'id' => $order->id,
-                'name' => $order->name,
-                'address' => $order->address,
-                'deadline' => $order->deadline,
-                'phone' => $order->phone,
-                'images' => $imageUrls, // Array URL lengkap gambar
-                'quantity' => $order->quantity,
-                'size_model' => $order->sizeModel ? $order->sizeModel->name : null, // Nama size model
-                'size' => $order->size,
-                'status' => $order->status,
-                'ditugaskan_ke' => $order->ditugaskan_ke,
-                'created_at' => $order->created_at,
-                'updated_at' => $order->updated_at
-            ];
-        });
+        $formattedOrders = $orders->map(fn($order) => $this->formatOrder($order));
 
         return response()->json([
             'success' => true,
             'message' => 'Order yang sedang dikerjakan ditemukan.',
-            'data' => $formattedOrders
+            'data' => $formattedOrders,
         ], 200);
     }
 
+    /**
+     * Menghitung jumlah order selesai milik user.
+     */
     public function countCompletedOrders(Request $request)
     {
-        // Ambil user yang sedang login berdasarkan token
         $user = $request->user();
 
         if (!$user) {
             return response()->json([
                 'success' => false,
-                'message' => 'User tidak ditemukan.'
+                'message' => 'User tidak ditemukan.',
             ], 404);
         }
 
-        // Hitung jumlah pesanan dengan status "selesai" yang ditugaskan ke user
         $completedOrdersCount = Order::where('ditugaskan_ke', $user->id)
-                                    ->where('status', 'selesai')
-                                    ->count();
+            ->where('status', 'selesai')
+            ->count();
 
         return response()->json([
             'success' => true,
             'message' => 'Jumlah pesanan selesai berhasil dihitung.',
-            'total_completed_orders' => $completedOrdersCount
+            'total_completed_orders' => $completedOrdersCount,
         ], 200);
     }
 
+    /**
+     * Menampilkan semua order selesai milik user.
+     */
     public function getCompletedOrders(Request $request)
     {
-        // Ambil user yang sedang login
         $user = $request->user();
 
         if (!$user) {
             return response()->json([
                 'success' => false,
-                'message' => 'User tidak ditemukan.'
+                'message' => 'User tidak ditemukan.',
             ], 404);
         }
 
-        // Ambil semua order dengan status "selesai" berdasarkan user yang login
-        // Ganti relasi image dengan sizeModel saja
-        $orders = Order::with(['sizeModel'])
-                    ->where('ditugaskan_ke', $user->id)
-                    ->where('status', 'selesai')
-                    ->get();
+        $orders = Order::with('sizeModel')
+            ->where('ditugaskan_ke', $user->id)
+            ->where('status', 'selesai')
+            ->get();
 
-        // Jika tidak ada order yang selesai
         if ($orders->isEmpty()) {
             return response()->json([
                 'success' => true,
                 'message' => 'Tidak ada pesanan yang telah selesai.',
-                'data' => []
+                'data' => [],
             ], 200);
         }
 
-        // Format data
-        $formattedOrders = $orders->map(function ($order) {
-            // Prepare image URLs
-            $imageUrls = [];
-            if (!empty($order->images) && is_array($order->images)) {
-                foreach ($order->images as $path) {
-                    $imageUrls[] = asset('storage/' . $path);
-                }
-            }
-
-            return [
-                'id' => $order->id,
-                'name' => $order->name,
-                'address' => $order->address,
-                'deadline' => $order->deadline,
-                'phone' => $order->phone,
-                'images' => $imageUrls, // Array URL lengkap gambar
-                'quantity' => $order->quantity,
-                'size_model' => $order->sizeModel ? $order->sizeModel->name : null, // Nama size model
-                'size' => $order->size,
-                'status' => $order->status,
-                'ditugaskan_ke' => $order->ditugaskan_ke,
-                'created_at' => $order->created_at,
-                'updated_at' => $order->updated_at
-            ];
-        });
+        $formattedOrders = $orders->map(fn($order) => $this->formatOrder($order));
 
         return response()->json([
             'success' => true,
             'message' => 'Data pesanan selesai berhasil diambil.',
-            'data' => $formattedOrders
+            'data' => $formattedOrders,
         ], 200);
     }
 }
