@@ -6,6 +6,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\OrdersController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\SalaryHistoryController;
 
 
 Route::post('login', [AuthController::class, 'login']);
@@ -24,5 +25,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/attendance/check-in', [AttendanceController::class, 'checkIn']);
     Route::get('/attendance/history', [AttendanceController::class, 'history']);
 
+    Route::get('/salary-history', [SalaryHistoryController::class, 'index']);
 
 });
