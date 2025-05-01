@@ -26,7 +26,7 @@ class Attendance extends Model
     }
 
     public function salaryDeductionHistory() {
-        return $this->hasOne(SalaryDeductionHistory::class, 'attendance_id');
+        return $this->hasOne(SalaryDeductionHistories::class, 'attendance_id');
     }
 
 }
