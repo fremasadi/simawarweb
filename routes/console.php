@@ -46,6 +46,7 @@ Artisan::command('salary:calculate-deductions', function () {
     }
 
     $this->info("Ditemukan " . $attendances->count() . " data absensi yang perlu dihitung.");
+    $this->info("Data absensi yang akan diproses: " . json_encode($attendances->pluck('id', 'user_id')));
 
     // Group attendances by user_id
     $groupedAttendances = $attendances->groupBy('user_id');
@@ -55,24 +56,9 @@ Artisan::command('salary:calculate-deductions', function () {
 
     try {
         foreach ($groupedAttendances as $userId => $userAttendances) {
-            // Ambil data salary berdasarkan user_id untuk bulan ini
-            // FIX: Modifikasi pencarian gaji untuk mendukung gaji bulanan dengan pay_date di bulan berikutnya
-            $salary = Salary::where('user_id', $userId)
-                ->where(function($query) use ($currentMonth) {
-                    // 1. Pay date di bulan ini, atau
-                    $query->whereRaw("DATE_FORMAT(pay_date, '%Y-%m') = ?", [$currentMonth])
-                          // 2. Pay date di awal bulan berikutnya (untuk gaji bulanan)
-                          ->orWhere(function($q) use ($currentMonth) {
-                              // Ambil tanggal 1 bulan berikutnya
-                              $nextMonthFirstDay = Carbon::createFromFormat('Y-m', $currentMonth)
-                                                  ->addMonth()
-                                                  ->startOfMonth()
-                                                  ->format('Y-m-d');
-                              $q->where('pay_date', $nextMonthFirstDay);
-                          });
-                })
-                ->first();
-
+            // Debug: Tampilkan user_id yang sedang diproses
+            $this->info("Memproses potongan untuk user ID: {$userId}");
+            
             // Debugging: Tampilkan informasi pencarian salary
             $this->info("Mencari gaji untuk user ID {$userId} periode {$currentMonth}");
             $nextMonthFirstDay = Carbon::createFromFormat('Y-m', $currentMonth)
@@ -81,8 +67,21 @@ Artisan::command('salary:calculate-deductions', function () {
                                 ->format('Y-m-d');
             $this->info("Atau dengan pay_date: {$nextMonthFirstDay}");
             
+            // Ambil data salary dengan kondisi yang diperbaiki
+            $salary = Salary::where('user_id', $userId)
+                ->where(function($query) use ($currentMonth, $nextMonthFirstDay) {
+                    // PERBAIKAN: Langsung gunakan variabel $nextMonthFirstDay yang sudah didefinisikan
+                    $query->whereRaw("DATE_FORMAT(pay_date, '%Y-%m') = ?", [$currentMonth])
+                          ->orWhere('pay_date', $nextMonthFirstDay);
+                })
+                ->first();
+            
+            // Debug: cek nilai salary yang ditemukan
             if (!$salary) {
-                $this->warn("Tidak ada data gaji untuk user_id {$userId} pada periode {$currentMonth}. Lewati perhitungan.");
+                // PERBAIKAN: Coba cari semua data gaji user untuk debugging
+                $allUserSalaries = Salary::where('user_id', $userId)->get();
+                $this->warn("Tidak ada data gaji untuk user_id {$userId} pada periode {$currentMonth}.");
+                $this->info("Semua data gaji user: " . json_encode($allUserSalaries->pluck('pay_date')));
                 continue;
             }
             
@@ -119,7 +118,8 @@ Artisan::command('salary:calculate-deductions', function () {
                 }
 
                 // Simpan riwayat potongan untuk setiap attendance
-                SalaryDeductionHistories::create([
+                // PERBAIKAN: Tambahkan variable untuk menyimpan hasil pembuatan history
+                $deductionHistory = SalaryDeductionHistories::create([
                     'user_id' => $userId,
                     'salary_id' => $salary->id,
                     'attendance_id' => $attendance->id,
@@ -132,6 +132,8 @@ Artisan::command('salary:calculate-deductions', function () {
                     'note' => "Potongan karena " . ($attendance->status === 'telat' ? "keterlambatan {$lateMinutes} menit" : "tidak hadir"),
                 ]);
 
+                // Debug: Cek ID history yang dibuat
+                $this->info("History dibuat dengan ID: " . $deductionHistory->id);
                 $this->info("Berhasil menambahkan potongan untuk attendance ID {$attendance->id}, user ID {$userId}, " .
                            "tanggal {$attendance->date}, status {$attendance->status}, " .
                            "jumlah potongan {$deductionAmount}");
@@ -147,12 +149,20 @@ Artisan::command('salary:calculate-deductions', function () {
                 $this->warn("Total gaji untuk user ID {$userId} kurang dari 0. Disetel ke 0.");
             }
 
-            $salary->update([
+            // PERBAIKAN: Simpan hasil update ke variabel untuk memastikan berhasil
+            $updateResult = $salary->update([
                 'total_deduction' => $totalDeduction,
                 'total_salary' => $newTotalSalary,
                 'status' => 'pending', // Atau status lainnya
                 'note' => $salary->note . " | Potongan diperbarui pada " . Carbon::now()->format('Y-m-d H:i:s'),
             ]);
+
+            // Debug: cek hasil update
+            $this->info("Hasil update salary: " . ($updateResult ? "Berhasil" : "Gagal"));
+            
+            // PERBAIKAN: Cek data setelah update
+            $updatedSalary = Salary::find($salary->id);
+            $this->info("Data salary setelah update: total_deduction={$updatedSalary->total_deduction}, total_salary={$updatedSalary->total_salary}");
 
             // Debugging: Tampilkan nilai yang dihitung
             $this->info("User ID: {$userId}");
@@ -175,7 +185,6 @@ Artisan::command('salary:calculate-deductions', function () {
         return 1;
     }
 })->purpose('Hitung pengurangan gaji berdasarkan data absensi, perbarui data gaji, dan simpan riwayat potongan');
-
 // Perintah untuk generate gaji karyawan
 Artisan::command('salary:generate', function () {
     $this->info("Memulai proses generate gaji...");
