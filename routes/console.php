@@ -24,6 +24,126 @@ use Illuminate\Support\Facades\Schedule;
 |
 */
 
+// Perintah untuk menghitung ulang pengurangan gaji dari riwayat potongan
+Artisan::command('salary:recalculate-from-history', function () {
+    // Dapatkan bulan dan tahun saat ini untuk filter
+    $currentMonth = Carbon::now()->format('Y-m');
+    $this->info("Menghitung ulang gaji dari riwayat potongan untuk periode: {$currentMonth}");
+    
+    // Ambil tanggal 1 bulan berikutnya (untuk gaji yang dibayar di awal bulan depan)
+    $nextMonthFirstDay = Carbon::createFromFormat('Y-m', $currentMonth)
+                        ->addMonth()
+                        ->startOfMonth()
+                        ->format('Y-m-d');
+    
+    // Ambil semua salary untuk bulan ini atau yang dibayarkan awal bulan depan
+    $salaries = Salary::where(function($query) use ($currentMonth, $nextMonthFirstDay) {
+            $query->whereRaw("DATE_FORMAT(pay_date, '%Y-%m') = ?", [$currentMonth])
+                  ->orWhere('pay_date', $nextMonthFirstDay);
+        })
+        ->get();
+    
+    if ($salaries->isEmpty()) {
+        $this->info("Tidak ada data gaji yang perlu dihitung ulang.");
+        return 0;
+    }
+
+    $this->info("Ditemukan " . $salaries->count() . " data gaji yang perlu dihitung ulang.");
+    
+    // Debug: tampilkan semua ID gaji yang akan diproses
+    $this->info("Data gaji yang akan diproses: " . json_encode($salaries->pluck('id', 'user_id')));
+
+    // Mulai transaksi database
+    DB::beginTransaction();
+
+    try {
+        foreach ($salaries as $salary) {
+            $userId = $salary->user_id;
+            $salaryId = $salary->id;
+            
+            // Debug: tampilkan informasi gaji yang sedang diproses
+            $this->info("Memproses gaji ID: {$salaryId}, user ID: {$userId}, pay_date: {$salary->pay_date}");
+            
+            // Ambil pengaturan gaji
+            $salarySetting = SalarySetting::find($salary->salary_setting_id);
+            
+            if (!$salarySetting) {
+                $this->warn("Tidak ada pengaturan gaji untuk salary_setting_id {$salary->salary_setting_id}. Lewati perhitungan.");
+                continue;
+            }
+            
+            // Ambil semua riwayat potongan untuk gaji ini
+            $deductionHistories = SalaryDeductionHistories::where('salary_id', $salaryId)->get();
+            
+            if ($deductionHistories->isEmpty()) {
+                $this->info("Tidak ada riwayat potongan untuk gaji ID {$salaryId}. Gaji tetap sama.");
+                continue;
+            }
+            
+            $this->info("Ditemukan " . $deductionHistories->count() . " riwayat potongan untuk gaji ID {$salaryId}");
+            
+            // Hitung total potongan dari history
+            $totalDeduction = $deductionHistories->sum('deduction_amount');
+            $this->info("Total potongan dihitung: {$totalDeduction}");
+            
+            // Hitung gaji bersih
+            $baseSalary = $salarySetting->salary;
+            $newTotalSalary = $baseSalary - $totalDeduction;
+            
+            // Pastikan total gaji tidak minus
+            if ($newTotalSalary < 0) {
+                $newTotalSalary = 0;
+                $this->warn("Total gaji untuk user ID {$userId} kurang dari 0. Disetel ke 0.");
+            }
+            
+            // Debug: tampilkan nilai sebelum update
+            $this->info("Nilai sebelum update - total_deduction: {$salary->total_deduction}, total_salary: {$salary->total_salary}");
+            $this->info("Nilai yang akan diupdate - total_deduction: {$totalDeduction}, total_salary: {$newTotalSalary}");
+            
+            // Update data salary dengan total pengurangan baru
+            $updateResult = $salary->update([
+                'total_deduction' => $totalDeduction,
+                'total_salary' => $newTotalSalary,
+                'note' => ($salary->note ?? '') . " | Total potongan diperbarui pada " . Carbon::now()->format('Y-m-d H:i:s'),
+            ]);
+            
+            // Debug: cek hasil update
+            $this->info("Hasil update salary: " . ($updateResult ? "Berhasil" : "Gagal"));
+            
+            // Verifikasi data setelah update
+            $updatedSalary = Salary::find($salaryId);
+            if (!$updatedSalary) {
+                $this->error("Gagal mengambil data gaji setelah update!");
+                continue;
+            }
+            
+            $this->info("Data setelah update - total_deduction: {$updatedSalary->total_deduction}, total_salary: {$updatedSalary->total_salary}");
+            
+            // Check if data was actually updated
+            if ($updatedSalary->total_deduction != $totalDeduction) {
+                $this->warn("PERINGATAN: Total deduction tidak terupdate dengan benar!");
+            }
+            
+            if ($updatedSalary->total_salary != $newTotalSalary) {
+                $this->warn("PERINGATAN: Total salary tidak terupdate dengan benar!");
+            }
+            
+            $this->info("Selesai memproses gaji ID: {$salaryId}");
+        }
+
+        // Commit transaksi jika semua proses berhasil
+        DB::commit();
+        $this->info("Proses penghitungan ulang gaji selesai.");
+        return 0;
+    } catch (\Exception $e) {
+        // Rollback transaksi jika terjadi kesalahan
+        DB::rollBack();
+        $this->error("Terjadi kesalahan: " . $e->getMessage());
+        $this->error("Trace: " . $e->getTraceAsString());
+        return 1;
+    }
+})->purpose('Hitung ulang total gaji berdasarkan riwayat potongan yang sudah ada');
+
 // Perintah untuk menghitung pengurangan gaji
 Artisan::command('salary:calculate-deductions', function () {
     // Dapatkan bulan dan tahun saat ini untuk filter
