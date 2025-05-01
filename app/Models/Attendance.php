@@ -28,6 +28,6 @@ class Attendance extends Model
     // app/Models/Attendance.php
 public function salaryDeductionHistories()
 {
-    return $this->hasMany(SalaryDeductionHistory::class, 'attendance_id');
+    return $this->hasMany(SalaryDeductionHistories::class, 'attendance_id');
 }
 }
