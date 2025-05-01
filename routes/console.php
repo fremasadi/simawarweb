@@ -24,202 +24,21 @@ use Illuminate\Support\Facades\Schedule;
 |
 */
 
-// Perintah untuk debugging data absensi
-Artisan::command('attendance:debug {month?} {year?}', function ($month = null, $year = null) {
-    // Set periode yang akan diperiksa
-    if ($month === null || $year === null) {
-        $currentMonth = Carbon::now()->month;
-        $currentYear = Carbon::now()->year;
-    } else {
-        $currentMonth = (int)$month;
-        $currentYear = (int)$year;
-    }
-    
-    $this->info("=== DEBUG DATA ABSENSI ===");
-    $this->info("Periode: {$currentYear}-{$currentMonth}");
-    
-    // 1. Cek struktur tabel attendances
-    $this->info("\n== STRUKTUR TABEL ==");
-    try {
-        $columns = Schema::getColumnListing('attendances');
-        foreach ($columns as $column) {
-            $type = DB::select("SHOW COLUMNS FROM attendances WHERE Field = '{$column}'")[0]->Type;
-            $this->info("- {$column}: {$type}");
-        }
-    } catch (\Exception $e) {
-        $this->error("Gagal mendapatkan struktur tabel: " . $e->getMessage());
-    }
-    
-    // 2. Cek data absensi untuk bulan yang diberikan
-    $this->info("\n== DATA ABSENSI PER TANGGAL ==");
-    try {
-        // Query database langsung untuk meminimalkan masalah
-        $attendances = DB::select("
-            SELECT id, user_id, date, status, late_minutes, check_in
-            FROM attendances
-            WHERE YEAR(date) = ? AND MONTH(date) = ?
-            ORDER BY date, user_id
-        ", [$currentYear, $currentMonth]);
-        
-        if (empty($attendances)) {
-            $this->warn("Tidak ada data absensi untuk periode {$currentYear}-{$currentMonth}");
-        } else {
-            $this->info("Total data: " . count($attendances));
-            $this->table(
-                ['ID', 'User ID', 'Tanggal', 'Status', 'Late Minutes', 'Check In'],
-                array_map(function($item) {
-                    return [
-                        $item->id,
-                        $item->user_id,
-                        $item->date,
-                        $item->status,
-                        $item->late_minutes,
-                        $item->check_in
-                    ];
-                }, $attendances)
-            );
-        }
-    } catch (\Exception $e) {
-        $this->error("Gagal mendapatkan data absensi: " . $e->getMessage());
-    }
-    
-    // 3. Cek jumlah data berdasarkan status
-    $this->info("\n== JUMLAH DATA PER STATUS ==");
-    try {
-        $statusCounts = DB::select("
-            SELECT status, COUNT(*) as jumlah
-            FROM attendances
-            WHERE YEAR(date) = ? AND MONTH(date) = ?
-            GROUP BY status
-        ", [$currentYear, $currentMonth]);
-        
-        if (empty($statusCounts)) {
-            $this->warn("Tidak ada data untuk ditampilkan");
-        } else {
-            $this->table(
-                ['Status', 'Jumlah'],
-                array_map(function($item) {
-                    return [$item->status, $item->jumlah];
-                }, $statusCounts)
-            );
-        }
-    } catch (\Exception $e) {
-        $this->error("Gagal mendapatkan jumlah per status: " . $e->getMessage());
-    }
-    
-    // 4. Periksa lagi query yang digunakan dalam calculate-deductions
-    $this->info("\n== VERIFIKASI QUERY CALCULATE-DEDUCTIONS ==");
-    try {
-        $monthStr = $currentYear . '-' . str_pad($currentMonth, 2, '0', STR_PAD_LEFT);
-        
-        // Gunakan query mentah untuk menghindari masalah dengan Eloquent
-        $matchingAttendances = DB::select("
-            SELECT id, user_id, date, status, late_minutes
-            FROM attendances
-            WHERE status IN ('telat', 'tidak hadir')
-            AND DATE_FORMAT(date, '%Y-%m') = ?
-        ", [$monthStr]);
-        
-        if (empty($matchingAttendances)) {
-            $this->warn("Tidak ada data yang cocok dengan filter salary:calculate-deductions");
-        } else {
-            $this->info("Data yang cocok dengan salary:calculate-deductions: " . count($matchingAttendances));
-            $this->table(
-                ['ID', 'User ID', 'Tanggal', 'Status', 'Late Minutes'],
-                array_map(function($item) {
-                    return [
-                        $item->id,
-                        $item->user_id,
-                        $item->date,
-                        $item->status,
-                        $item->late_minutes
-                    ];
-                }, $matchingAttendances)
-            );
-        }
-        
-        // Cek juga formatted date untuk memastikan format benar
-        $formattedDateCheck = DB::select("
-            SELECT id, date, DATE_FORMAT(date, '%Y-%m') as formatted_date
-            FROM attendances
-            WHERE YEAR(date) = ? AND MONTH(date) = ?
-            LIMIT 5
-        ", [$currentYear, $currentMonth]);
-        
-        if (!empty($formattedDateCheck)) {
-            $this->info("\nVerifikasi Format Tanggal:");
-            $this->table(
-                ['ID', 'Tanggal Asli', 'Format Y-m'],
-                array_map(function($item) {
-                    return [$item->id, $item->date, $item->formatted_date];
-                }, $formattedDateCheck)
-            );
-        }
-        
-    } catch (\Exception $e) {
-        $this->error("Gagal memverifikasi query: " . $e->getMessage());
-    }
-})->purpose('Debugging data absensi dan verifikasi query yang digunakan');
-
 // Perintah untuk menghitung pengurangan gaji
-Artisan::command('salary:calculate-deductions {month?} {year?} {--force : Paksa hitung ulang meskipun sudah diproses} {--debug : Tampilkan informasi debug}', function ($month = null, $year = null) {
-    // Set periode yang akan dihitung
-    if ($month === null || $year === null) {
-        $currentMonth = Carbon::now()->format('Y-m');
-    } else {
-        $currentMonth = sprintf('%04d-%02d', $year, $month); 
-    }
-    
+Artisan::command('salary:calculate-deductions', function () {
+    // Dapatkan bulan dan tahun saat ini untuk filter
+    $currentMonth = Carbon::now()->format('Y-m');
     $this->info("Menghitung pengurangan gaji untuk periode: {$currentMonth}");
     
-    // Mode debug
-    $debug = $this->option('debug');
-    $force = $this->option('force');
-    
-    if ($debug) {
-        $this->info("Mode DEBUG: aktif");
-        $this->info("Mode FORCE: " . ($force ? "aktif" : "tidak aktif"));
-    }
-    
-    // Ambil semua data attendances dengan filter bulan ini
-    $query = Attendance::whereIn('status', ['telat', 'tidak hadir'])
-        ->whereRaw("DATE_FORMAT(date, '%Y-%m') = ?", [$currentMonth]);
-    
-    // Jika tidak dalam mode force, tambahkan filter yang belum diproses
-    if (!$force) {
-        $query->whereNotExists(function ($subquery) {
-            $subquery->select(DB::raw(1))
-                   ->from('salary_deduction_histories')
-                   ->whereRaw('salary_deduction_histories.attendance_id = attendances.id');
-        });
-    }
-    
-    // Get the attendances
-    $attendances = $query->get();
-    
-    if ($debug) {
-        // Tampilkan semua absensi untuk periode tersebut
-        $allAttendances = Attendance::whereIn('status', ['telat', 'tidak hadir'])
-            ->whereRaw("DATE_FORMAT(date, '%Y-%m') = ?", [$currentMonth])
-            ->get();
-            
-        $this->info("Total data absensi dengan status telat/tidak hadir: " . $allAttendances->count());
-        
-        // Cek yang sudah punya potongan
-        $alreadyProcessed = 0;
-        foreach ($allAttendances as $attendance) {
-            $hasDeduction = DB::table('salary_deduction_histories')
-                ->where('attendance_id', $attendance->id)
-                ->exists();
-                
-            if ($hasDeduction) {
-                $alreadyProcessed++;
-            }
-        }
-        
-        $this->info("- Data yang sudah diproses: " . $alreadyProcessed);
-        $this->info("- Data yang belum diproses: " . ($allAttendances->count() - $alreadyProcessed));
-    }
+    // Ambil semua data attendances dengan filter bulan ini dan belum ada potongan
+    $attendances = Attendance::whereIn('status', ['telat', 'tidak hadir'])
+        ->whereRaw("DATE_FORMAT(date, '%Y-%m') = ?", [$currentMonth])
+        ->whereNotExists(function ($query) {
+            $query->select(DB::raw(1))
+                  ->from('salary_deduction_histories')
+                  ->whereRaw('salary_deduction_histories.attendance_id = attendances.id');
+        })
+        ->get();
         
     if ($attendances->isEmpty()) {
         $this->info("Tidak ada data absensi yang perlu dihitung potongannya.");
@@ -231,23 +50,13 @@ Artisan::command('salary:calculate-deductions {month?} {year?} {--force : Paksa 
     // Group attendances by user_id
     $groupedAttendances = $attendances->groupBy('user_id');
 
-    // Jika mode force, hapus riwayat potongan yang sudah ada
-    if ($force) {
-        $attendanceIds = $attendances->pluck('id')->toArray();
-        if (!empty($attendanceIds)) {
-            $deletedCount = DB::table('salary_deduction_histories')
-                ->whereIn('attendance_id', $attendanceIds)
-                ->delete();
-            $this->info("Menghapus {$deletedCount} riwayat potongan yang sudah ada untuk perhitungan ulang.");
-        }
-    }
-
     // Mulai transaksi database
     DB::beginTransaction();
 
     try {
         foreach ($groupedAttendances as $userId => $userAttendances) {
             // Ambil data salary berdasarkan user_id untuk bulan ini
+            // FIX: Modifikasi pencarian gaji untuk mendukung gaji bulanan dengan pay_date di bulan berikutnya
             $salary = Salary::where('user_id', $userId)
                 ->where(function($query) use ($currentMonth) {
                     // 1. Pay date di bulan ini, atau
@@ -265,23 +74,12 @@ Artisan::command('salary:calculate-deductions {month?} {year?} {--force : Paksa 
                 ->first();
 
             // Debugging: Tampilkan informasi pencarian salary
-            if ($debug) {
-                $this->info("-------------------------------------");
-                $this->info("Mencari gaji untuk user ID {$userId} periode {$currentMonth}");
-                $nextMonthFirstDay = Carbon::createFromFormat('Y-m', $currentMonth)
-                                    ->addMonth()
-                                    ->startOfMonth()
-                                    ->format('Y-m-d');
-                $this->info("Atau dengan pay_date: {$nextMonthFirstDay}");
-                
-                // Cek semua gaji user
-                $allUserSalaries = Salary::where('user_id', $userId)->get();
-                $this->info("Total data gaji untuk user ID {$userId}: " . $allUserSalaries->count());
-                
-                foreach ($allUserSalaries as $s) {
-                    $this->info("- ID: {$s->id}, Pay Date: {$s->pay_date}, Status: {$s->status}");
-                }
-            }
+            $this->info("Mencari gaji untuk user ID {$userId} periode {$currentMonth}");
+            $nextMonthFirstDay = Carbon::createFromFormat('Y-m', $currentMonth)
+                                ->addMonth()
+                                ->startOfMonth()
+                                ->format('Y-m-d');
+            $this->info("Atau dengan pay_date: {$nextMonthFirstDay}");
             
             if (!$salary) {
                 $this->warn("Tidak ada data gaji untuk user_id {$userId} pada periode {$currentMonth}. Lewati perhitungan.");
