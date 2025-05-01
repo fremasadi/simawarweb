@@ -25,20 +25,64 @@ use Illuminate\Support\Facades\Schedule;
 */
 
 // Perintah untuk menghitung pengurangan gaji
-Artisan::command('salary:calculate-deductions', function () {
-    // Dapatkan bulan dan tahun saat ini untuk filter
-    $currentMonth = Carbon::now()->format('Y-m');
+Artisan::command('salary:calculate-deductions {month?} {year?} {--force : Paksa hitung ulang meskipun sudah diproses} {--debug : Tampilkan informasi debug}', function ($month = null, $year = null) {
+    // Set periode yang akan dihitung
+    if ($month === null || $year === null) {
+        $currentMonth = Carbon::now()->format('Y-m');
+    } else {
+        $currentMonth = sprintf('%04d-%02d', $year, $month); 
+    }
+    
     $this->info("Menghitung pengurangan gaji untuk periode: {$currentMonth}");
     
-    // Ambil semua data attendances dengan filter bulan ini dan belum ada potongan
-    $attendances = Attendance::whereIn('status', ['telat', 'tidak hadir'])
-        ->whereRaw("DATE_FORMAT(date, '%Y-%m') = ?", [$currentMonth])
-        ->whereNotExists(function ($query) {
-            $query->select(DB::raw(1))
-                  ->from('salary_deduction_histories')
-                  ->whereRaw('salary_deduction_histories.attendance_id = attendances.id');
-        })
-        ->get();
+    // Mode debug
+    $debug = $this->option('debug');
+    $force = $this->option('force');
+    
+    if ($debug) {
+        $this->info("Mode DEBUG: aktif");
+        $this->info("Mode FORCE: " . ($force ? "aktif" : "tidak aktif"));
+    }
+    
+    // Ambil semua data attendances dengan filter bulan ini
+    $query = Attendance::whereIn('status', ['telat', 'tidak hadir'])
+        ->whereRaw("DATE_FORMAT(date, '%Y-%m') = ?", [$currentMonth]);
+    
+    // Jika tidak dalam mode force, tambahkan filter yang belum diproses
+    if (!$force) {
+        $query->whereNotExists(function ($subquery) {
+            $subquery->select(DB::raw(1))
+                   ->from('salary_deduction_histories')
+                   ->whereRaw('salary_deduction_histories.attendance_id = attendances.id');
+        });
+    }
+    
+    // Get the attendances
+    $attendances = $query->get();
+    
+    if ($debug) {
+        // Tampilkan semua absensi untuk periode tersebut
+        $allAttendances = Attendance::whereIn('status', ['telat', 'tidak hadir'])
+            ->whereRaw("DATE_FORMAT(date, '%Y-%m') = ?", [$currentMonth])
+            ->get();
+            
+        $this->info("Total data absensi dengan status telat/tidak hadir: " . $allAttendances->count());
+        
+        // Cek yang sudah punya potongan
+        $alreadyProcessed = 0;
+        foreach ($allAttendances as $attendance) {
+            $hasDeduction = DB::table('salary_deduction_histories')
+                ->where('attendance_id', $attendance->id)
+                ->exists();
+                
+            if ($hasDeduction) {
+                $alreadyProcessed++;
+            }
+        }
+        
+        $this->info("- Data yang sudah diproses: " . $alreadyProcessed);
+        $this->info("- Data yang belum diproses: " . ($allAttendances->count() - $alreadyProcessed));
+    }
         
     if ($attendances->isEmpty()) {
         $this->info("Tidak ada data absensi yang perlu dihitung potongannya.");
@@ -50,13 +94,23 @@ Artisan::command('salary:calculate-deductions', function () {
     // Group attendances by user_id
     $groupedAttendances = $attendances->groupBy('user_id');
 
+    // Jika mode force, hapus riwayat potongan yang sudah ada
+    if ($force) {
+        $attendanceIds = $attendances->pluck('id')->toArray();
+        if (!empty($attendanceIds)) {
+            $deletedCount = DB::table('salary_deduction_histories')
+                ->whereIn('attendance_id', $attendanceIds)
+                ->delete();
+            $this->info("Menghapus {$deletedCount} riwayat potongan yang sudah ada untuk perhitungan ulang.");
+        }
+    }
+
     // Mulai transaksi database
     DB::beginTransaction();
 
     try {
         foreach ($groupedAttendances as $userId => $userAttendances) {
             // Ambil data salary berdasarkan user_id untuk bulan ini
-            // FIX: Modifikasi pencarian gaji untuk mendukung gaji bulanan dengan pay_date di bulan berikutnya
             $salary = Salary::where('user_id', $userId)
                 ->where(function($query) use ($currentMonth) {
                     // 1. Pay date di bulan ini, atau
@@ -74,12 +128,23 @@ Artisan::command('salary:calculate-deductions', function () {
                 ->first();
 
             // Debugging: Tampilkan informasi pencarian salary
-            $this->info("Mencari gaji untuk user ID {$userId} periode {$currentMonth}");
-            $nextMonthFirstDay = Carbon::createFromFormat('Y-m', $currentMonth)
-                                ->addMonth()
-                                ->startOfMonth()
-                                ->format('Y-m-d');
-            $this->info("Atau dengan pay_date: {$nextMonthFirstDay}");
+            if ($debug) {
+                $this->info("-------------------------------------");
+                $this->info("Mencari gaji untuk user ID {$userId} periode {$currentMonth}");
+                $nextMonthFirstDay = Carbon::createFromFormat('Y-m', $currentMonth)
+                                    ->addMonth()
+                                    ->startOfMonth()
+                                    ->format('Y-m-d');
+                $this->info("Atau dengan pay_date: {$nextMonthFirstDay}");
+                
+                // Cek semua gaji user
+                $allUserSalaries = Salary::where('user_id', $userId)->get();
+                $this->info("Total data gaji untuk user ID {$userId}: " . $allUserSalaries->count());
+                
+                foreach ($allUserSalaries as $s) {
+                    $this->info("- ID: {$s->id}, Pay Date: {$s->pay_date}, Status: {$s->status}");
+                }
+            }
             
             if (!$salary) {
                 $this->warn("Tidak ada data gaji untuk user_id {$userId} pada periode {$currentMonth}. Lewati perhitungan.");
