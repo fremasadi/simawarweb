@@ -26,97 +26,91 @@ use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('salary:calculate-deductions', function () {
     $currentMonth = Carbon::now()->format('Y-m');
+    $previousMonth = Carbon::now()->subMonth()->format('Y-m');
     $this->info("Menghitung pengurangan gaji untuk periode: {$currentMonth}");
-    
-    // Ambil data absensi yang memerlukan perhitungan
-    $attendances = Attendance::with(['user' => function($query) {
-            $query->select('id', 'name');
-        }])
+
+    // 1. Cari semua absensi yang perlu diproses
+    $attendances = Attendance::with('user')
         ->whereIn('status', ['telat', 'tidak hadir'])
-        ->whereRaw("DATE_FORMAT(date, '%Y-%m') = ?", [$currentMonth])
-        ->whereDoesntHave('salaryDeductionHistories')
+        ->where(function($query) use ($currentMonth, $previousMonth) {
+            $query->whereRaw("DATE_FORMAT(date, '%Y-%m') = ?", [$currentMonth])
+                  ->orWhereRaw("DATE_FORMAT(date, '%Y-%m') = ?", [$previousMonth]);
+        })
+        ->whereDoesntHave('salaryDeductionHistory', function($query) {
+            $query->where('deduction_amount', '>', 0);
+        })
         ->get();
-        
+
     if ($attendances->isEmpty()) {
         $this->info("Tidak ada data absensi yang perlu dihitung potongannya.");
         return 0;
     }
 
-    $this->info("Ditemukan " . $attendances->count() . " data absensi yang perlu dihitung.");
-
-    // Group by user untuk efisiensi pemrosesan
-    $groupedAttendances = $attendances->groupBy('user_id');
+    $this->info("Ditemukan ".$attendances->count()." data absensi yang perlu dihitung.");
 
     DB::beginTransaction();
 
     try {
-        foreach ($groupedAttendances as $userId => $userAttendances) {
+        foreach ($attendances->groupBy('user_id') as $userId => $userAttendances) {
             $user = $userAttendances->first()->user;
-            $this->info("\nMemproses user: {$user->name} (ID: {$userId})");
+            $this->info("\nMemproses karyawan: {$user->name} (ID: {$userId})");
 
-            // Cari gaji yang relevan untuk bulan ini
+            // 2. Cari data gaji yang sesuai
             $salary = Salary::where('user_id', $userId)
-                ->where(function($query) use ($currentMonth) {
+                ->where(function($query) use ($currentMonth, $previousMonth) {
                     $query->whereRaw("DATE_FORMAT(pay_date, '%Y-%m') = ?", [$currentMonth])
-                          ->orWhere(function($q) use ($currentMonth) {
-                              $nextMonthFirstDay = Carbon::createFromFormat('Y-m', $currentMonth)
-                                                  ->addMonth()
-                                                  ->startOfMonth()
-                                                  ->format('Y-m-d');
-                              $q->where('pay_date', $nextMonthFirstDay);
-                          });
+                          ->orWhereRaw("DATE_FORMAT(pay_date, '%Y-%m') = ?", [$previousMonth])
+                          ->orWhere('pay_date', Carbon::createFromFormat('Y-m', $currentMonth)
+                              ->addMonth()->startOfMonth()->format('Y-m-d'));
                 })
                 ->with('salarySetting')
+                ->orderBy('pay_date', 'desc')
                 ->first();
 
             if (!$salary) {
-                $this->warn("Tidak ada data gaji untuk user ini pada periode {$currentMonth}.");
+                $this->warn("Tidak ada data gaji untuk user ini.");
                 continue;
             }
-            
+
             if (!$salary->salarySetting) {
                 $this->warn("Tidak ada pengaturan gaji untuk salary ID {$salary->id}.");
                 continue;
             }
 
-            $additionalDeduction = 0;
-            $deductionDetails = [];
+            $totalDeduction = $salary->total_deduction;
+            $this->info("Potongan sebelumnya: Rp".number_format($totalDeduction, 2));
 
+            // 3. Proses setiap absensi
             foreach ($userAttendances as $attendance) {
                 $deductionAmount = $this->calculateDeduction($attendance, $salary->salarySetting);
                 
-                // Simpan riwayat potongan
-                SalaryDeductionHistories::create([
+                SalaryDeductionHistory::create([
                     'user_id' => $userId,
                     'salary_id' => $salary->id,
                     'attendance_id' => $attendance->id,
                     'deduction_type' => $attendance->status,
-                    'late_minutes' => $attendance->status === 'telat' ? $attendance->late_minutes : null,
+                    'late_minutes' => $attendance->late_minutes,
                     'deduction_amount' => $deductionAmount,
-                    'deduction_per_minute' => $attendance->status === 'telat' ? $salary->salarySetting->deduction_per_minute : null,
-                    'reduction_if_absent' => $attendance->status === 'tidak hadir' ? $salary->salarySetting->reduction_if_absent : null,
                     'deduction_date' => $attendance->date,
-                    'note' => $this->generateDeductionNote($attendance),
+                    'note' => $this->generateDeductionNote($attendance)
                 ]);
 
-                $additionalDeduction += $deductionAmount;
-                $deductionDetails[] = "Tanggal {$attendance->date}: {$attendance->status} - Potongan Rp" . number_format($deductionAmount, 2);
+                $totalDeduction += $deductionAmount;
+                $this->info("Potongan untuk absensi {$attendance->date}: Rp".number_format($deductionAmount, 2));
             }
 
-            // Update total gaji
-            $totalDeduction = $salary->total_deduction + $additionalDeduction;
+            // 4. Update total gaji
             $newTotalSalary = max(0, $salary->salarySetting->salary - $totalDeduction);
-
+            
             $salary->update([
                 'total_deduction' => $totalDeduction,
                 'total_salary' => $newTotalSalary,
                 'status' => 'pending',
-                'note' => "Diperbarui pada " . Carbon::now()->format('Y-m-d H:i:s') . 
-                         "\nDetail potongan:\n" . implode("\n", $deductionDetails)
+                'updated_at' => now()
             ]);
 
-            $this->info("Total potongan baru: Rp" . number_format($totalDeduction, 2));
-            $this->info("Gaji bersih: Rp" . number_format($newTotalSalary, 2));
+            $this->info("Total potongan baru: Rp".number_format($totalDeduction, 2));
+            $this->info("Gaji bersih: Rp".number_format($newTotalSalary, 2));
         }
 
         DB::commit();
@@ -124,13 +118,12 @@ Artisan::command('salary:calculate-deductions', function () {
         return 0;
     } catch (\Exception $e) {
         DB::rollBack();
-        $this->error("Error: " . $e->getMessage());
-        $this->error($e->getTraceAsString());
+        $this->error("Error: ".$e->getMessage());
         return 1;
     }
-})->purpose('Hitung pengurangan gaji berdasarkan data absensi');
+});
 
-// Fungsi helper untuk menghitung potongan
+// Helper functions
  function calculateDeduction($attendance, $salarySetting) {
     if ($attendance->status === 'telat') {
         return $attendance->late_minutes * $salarySetting->deduction_per_minute;
@@ -140,12 +133,10 @@ Artisan::command('salary:calculate-deductions', function () {
     return 0;
 }
 
-// Fungsi helper untuk generate catatan potongan
  function generateDeductionNote($attendance) {
-    if ($attendance->status === 'telat') {
-        return "Potongan karena keterlambatan {$attendance->late_minutes} menit";
-    }
-    return "Potongan karena tidak hadir";
+    return $attendance->status === 'telat' 
+        ? "Terlambat {$attendance->late_minutes} menit" 
+        : "Tidak hadir";
 }
 
 Artisan::command('salary:generate', function () {
