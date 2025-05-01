@@ -24,4 +24,10 @@ class Attendance extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    // app/Models/Attendance.php
+public function salaryDeductionHistories()
+{
+    return $this->hasMany(SalaryDeductionHistory::class, 'attendance_id');
+}
 }
