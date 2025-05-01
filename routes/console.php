@@ -24,6 +24,143 @@ use Illuminate\Support\Facades\Schedule;
 |
 */
 
+// Perintah untuk debugging data absensi
+Artisan::command('attendance:debug {month?} {year?}', function ($month = null, $year = null) {
+    // Set periode yang akan diperiksa
+    if ($month === null || $year === null) {
+        $currentMonth = Carbon::now()->month;
+        $currentYear = Carbon::now()->year;
+    } else {
+        $currentMonth = (int)$month;
+        $currentYear = (int)$year;
+    }
+    
+    $this->info("=== DEBUG DATA ABSENSI ===");
+    $this->info("Periode: {$currentYear}-{$currentMonth}");
+    
+    // 1. Cek struktur tabel attendances
+    $this->info("\n== STRUKTUR TABEL ==");
+    try {
+        $columns = Schema::getColumnListing('attendances');
+        foreach ($columns as $column) {
+            $type = DB::select("SHOW COLUMNS FROM attendances WHERE Field = '{$column}'")[0]->Type;
+            $this->info("- {$column}: {$type}");
+        }
+    } catch (\Exception $e) {
+        $this->error("Gagal mendapatkan struktur tabel: " . $e->getMessage());
+    }
+    
+    // 2. Cek data absensi untuk bulan yang diberikan
+    $this->info("\n== DATA ABSENSI PER TANGGAL ==");
+    try {
+        // Query database langsung untuk meminimalkan masalah
+        $attendances = DB::select("
+            SELECT id, user_id, date, status, late_minutes, check_in
+            FROM attendances
+            WHERE YEAR(date) = ? AND MONTH(date) = ?
+            ORDER BY date, user_id
+        ", [$currentYear, $currentMonth]);
+        
+        if (empty($attendances)) {
+            $this->warn("Tidak ada data absensi untuk periode {$currentYear}-{$currentMonth}");
+        } else {
+            $this->info("Total data: " . count($attendances));
+            $this->table(
+                ['ID', 'User ID', 'Tanggal', 'Status', 'Late Minutes', 'Check In'],
+                array_map(function($item) {
+                    return [
+                        $item->id,
+                        $item->user_id,
+                        $item->date,
+                        $item->status,
+                        $item->late_minutes,
+                        $item->check_in
+                    ];
+                }, $attendances)
+            );
+        }
+    } catch (\Exception $e) {
+        $this->error("Gagal mendapatkan data absensi: " . $e->getMessage());
+    }
+    
+    // 3. Cek jumlah data berdasarkan status
+    $this->info("\n== JUMLAH DATA PER STATUS ==");
+    try {
+        $statusCounts = DB::select("
+            SELECT status, COUNT(*) as jumlah
+            FROM attendances
+            WHERE YEAR(date) = ? AND MONTH(date) = ?
+            GROUP BY status
+        ", [$currentYear, $currentMonth]);
+        
+        if (empty($statusCounts)) {
+            $this->warn("Tidak ada data untuk ditampilkan");
+        } else {
+            $this->table(
+                ['Status', 'Jumlah'],
+                array_map(function($item) {
+                    return [$item->status, $item->jumlah];
+                }, $statusCounts)
+            );
+        }
+    } catch (\Exception $e) {
+        $this->error("Gagal mendapatkan jumlah per status: " . $e->getMessage());
+    }
+    
+    // 4. Periksa lagi query yang digunakan dalam calculate-deductions
+    $this->info("\n== VERIFIKASI QUERY CALCULATE-DEDUCTIONS ==");
+    try {
+        $monthStr = $currentYear . '-' . str_pad($currentMonth, 2, '0', STR_PAD_LEFT);
+        
+        // Gunakan query mentah untuk menghindari masalah dengan Eloquent
+        $matchingAttendances = DB::select("
+            SELECT id, user_id, date, status, late_minutes
+            FROM attendances
+            WHERE status IN ('telat', 'tidak hadir')
+            AND DATE_FORMAT(date, '%Y-%m') = ?
+        ", [$monthStr]);
+        
+        if (empty($matchingAttendances)) {
+            $this->warn("Tidak ada data yang cocok dengan filter salary:calculate-deductions");
+        } else {
+            $this->info("Data yang cocok dengan salary:calculate-deductions: " . count($matchingAttendances));
+            $this->table(
+                ['ID', 'User ID', 'Tanggal', 'Status', 'Late Minutes'],
+                array_map(function($item) {
+                    return [
+                        $item->id,
+                        $item->user_id,
+                        $item->date,
+                        $item->status,
+                        $item->late_minutes
+                    ];
+                }, $matchingAttendances)
+            );
+        }
+        
+        // Cek juga formatted date untuk memastikan format benar
+        $formattedDateCheck = DB::select("
+            SELECT id, date, DATE_FORMAT(date, '%Y-%m') as formatted_date
+            FROM attendances
+            WHERE YEAR(date) = ? AND MONTH(date) = ?
+            LIMIT 5
+        ", [$currentYear, $currentMonth]);
+        
+        if (!empty($formattedDateCheck)) {
+            $this->info("\nVerifikasi Format Tanggal:");
+            $this->table(
+                ['ID', 'Tanggal Asli', 'Format Y-m'],
+                array_map(function($item) {
+                    return [$item->id, $item->date, $item->formatted_date];
+                }, $formattedDateCheck)
+            );
+        }
+        
+    } catch (\Exception $e) {
+        $this->error("Gagal memverifikasi query: " . $e->getMessage());
+    }
+})->purpose('Debugging data absensi dan verifikasi query yang digunakan');
+
 // Perintah untuk menghitung pengurangan gaji
 Artisan::command('salary:calculate-deductions {month?} {year?} {--force : Paksa hitung ulang meskipun sudah diproses} {--debug : Tampilkan informasi debug}', function ($month = null, $year = null) {
     // Set periode yang akan dihitung
