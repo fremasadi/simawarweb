@@ -48,14 +48,13 @@ class SalaryResource extends Resource
                 //     ->relationship('salarySetting', 'name')
                 //     ->required(),
                 Forms\Components\Placeholder::make('total_salary')
-                    ->label('Total gaji')
-                    ->required()
-                    ->numeric(),
+                    ->label('Total Gaji')
+                    ->content(fn ($record) => 'Rp ' . number_format($record->total_salary, 0, ',', '.')),
+
                 Forms\Components\Placeholder::make('total_deduction')
                     ->label('Total Potongan')
-                    ->required()
-                    ->numeric()
-                    ->default(0.00),
+                    ->content(fn ($record) => 'Rp ' . number_format($record->total_deduction ?? 0, 0, ',', '.')),
+
                     Forms\Components\Select::make('status')
                     ->label('Status Pembayaran')
                     ->options([
