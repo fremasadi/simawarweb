@@ -17,6 +17,8 @@ use Kreait\Firebase\Messaging\CloudMessage;
 use Kreait\Firebase\Messaging\RegistrationToken;
 use Kreait\Firebase\Messaging\FirebaseMessaging;
 use Illuminate\Support\Facades\Notification;
+use Kreait\Firebase\Messaging;
+
 /*
 |--------------------------------------------------------------------------
 | Console Routes
