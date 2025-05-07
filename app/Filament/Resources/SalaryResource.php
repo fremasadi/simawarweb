@@ -94,8 +94,16 @@ class SalaryResource extends Resource
                     ->numeric()
                     ->sortable()
                     ->money('Rp.'), // Opsional: format sebagai mata uang
-                Tables\Columns\TextColumn::make('status'),
-                Tables\Columns\TextColumn::make('pay_date')
+                    Tables\Columns\TextColumn::make('status')
+                    ->label('Status')
+                    ->formatStateUsing(function ($state) {
+                        return match ($state) {
+                            'pending' => 'Tertunda',
+                            'paid' => 'Selesai',
+                            default => ucfirst($state),
+                        };
+                    }),
+                                Tables\Columns\TextColumn::make('pay_date')
                     ->label('waktu pembayaran')
                     ->date()
                     ->sortable(),
