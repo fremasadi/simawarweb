@@ -127,6 +127,7 @@ Artisan::command('send:firebase-notification', function () {
     $this->info('Firebase notifications process completed!');
 });
 // Perintah untuk menghitung pengurangan gaji
+// Perintah untuk menghitung pengurangan gaji
 Artisan::command('salary:calculate-deductions', function () {
     // Dapatkan bulan dan tahun saat ini untuk filter
     $currentMonth = Carbon::now()->format('Y-m');
@@ -158,22 +159,27 @@ Artisan::command('salary:calculate-deductions', function () {
     try {
         foreach ($groupedAttendances as $userId => $userAttendances) {
             // Ambil data salary berdasarkan user_id untuk bulan ini
-            // FIX: Modifikasi pencarian gaji untuk mendukung gaji bulanan dengan pay_date di bulan berikutnya
-            $salary = Salary::where('user_id', $userId)
+            // FIX: Modifikasi pencarian gaji untuk bulan saat ini yang dibayarkan bulan berikutnya
+            $salaryQuery = Salary::where('user_id', $userId)
                 ->where(function($query) use ($currentMonth) {
-                    // 1. Pay date di bulan ini, atau
-                    $query->whereRaw("DATE_FORMAT(pay_date, '%Y-%m') = ?", [$currentMonth])
-                          // 2. Pay date di awal bulan berikutnya (untuk gaji bulanan)
-                          ->orWhere(function($q) use ($currentMonth) {
-                              // Ambil tanggal 1 bulan berikutnya
-                              $nextMonthFirstDay = Carbon::createFromFormat('Y-m', $currentMonth)
-                                                  ->addMonth()
-                                                  ->startOfMonth()
-                                                  ->format('Y-m-d');
-                              $q->where('pay_date', $nextMonthFirstDay);
-                          });
-                })
-                ->first();
+                    // 1. Salary untuk periode bulan ini dengan pay_date di bulan ini
+                    $query->whereRaw("DATE_FORMAT(pay_date, '%Y-%m') = ?", [$currentMonth]);
+                    
+                    // 2. ATAU Salary untuk periode bulan ini dengan pay_date di awal bulan berikutnya
+                    $nextMonthFirstDay = Carbon::createFromFormat('Y-m', $currentMonth)
+                        ->addMonth()
+                        ->startOfMonth()
+                        ->format('Y-m-d');
+                    
+                    $query->orWhere('pay_date', $nextMonthFirstDay);
+                });
+            
+            // Debug query SQL
+            $querySql = $salaryQuery->toSql();
+            $this->info("SQL Query: " . $querySql);
+            $this->info("dengan parameter: " . $currentMonth . " dan " . Carbon::createFromFormat('Y-m', $currentMonth)->addMonth()->startOfMonth()->format('Y-m-d'));
+            
+            $salary = $salaryQuery->first();
 
             // Debugging: Tampilkan informasi pencarian salary
             $this->info("Mencari gaji untuk user ID {$userId} periode {$currentMonth}");
@@ -249,14 +255,22 @@ Artisan::command('salary:calculate-deductions', function () {
                 $this->warn("Total gaji untuk user ID {$userId} kurang dari 0. Disetel ke 0.");
             }
 
-            DB::table('salaries')
-            ->where('id', $salary->id)
-            ->update([
-                'total_deduction' => $totalDeduction,
-                'total_salary' => $newTotalSalary,
-                'status' => 'pending',
-                'note' => ($salary->note ?: '') . " | Potongan diperbarui pada " . Carbon::now()->format('Y-m-d H:i:s'),
-            ]);
+            // Update data salary
+            $updateResult = DB::table('salaries')
+                ->where('id', $salary->id)
+                ->update([
+                    'total_deduction' => $totalDeduction,
+                    'total_salary' => $newTotalSalary,
+                    'status' => 'pending',
+                    'note' => ($salary->note ?: '') . " | Potongan diperbarui pada " . Carbon::now()->format('Y-m-d H:i:s'),
+                ]);
+
+            // Debugging: Tampilkan status update
+            if ($updateResult) {
+                $this->info("Berhasil update data gaji dengan ID {$salary->id}");
+            } else {
+                $this->warn("Gagal update data gaji dengan ID {$salary->id}");
+            }
 
             // Debugging: Tampilkan nilai yang dihitung
             $this->info("User ID: {$userId}");
