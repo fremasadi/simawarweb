@@ -12,19 +12,28 @@ use App\Models\SalaryDeductionHistories;
 class SalaryHistoryController extends Controller
 {
     public function index(Request $request)
-    {
-        $user = $request->user(); // Mendapatkan user dari Sanctum
+{
+    $user = $request->user(); // User dari Sanctum
 
-        $salaries = Salary::with('salarySetting')
-            ->where('user_id', $user->id)
-            ->orderBy('pay_date', 'desc')
-            ->get();
+    $query = Salary::with('salarySetting')
+        ->where('user_id', $user->id);
 
-        return response()->json([
-            'status' => 'success',
-            'data' => $salaries,
-        ]);
+    // Filter berdasarkan tanggal jika tersedia
+    if ($request->has('from')) {
+        $query->whereDate('pay_date', '>=', $request->input('from'));
     }
+
+    if ($request->has('to')) {
+        $query->whereDate('pay_date', '<=', $request->input('to'));
+    }
+
+    $salaries = $query->orderBy('pay_date', 'desc')->get();
+
+    return response()->json([
+        'status' => 'success',
+        'data' => $salaries,
+    ]);
+}
 
     public function showDeductions($salary_id)
 {
