@@ -30,7 +30,8 @@ use Kreait\Firebase\Messaging;
 |
 */
 Artisan::command('send:firebase-notification', function () {
-    $messaging = app(FirebaseMessaging::class);
+    // Get the Firebase Messaging instance from the service container
+    $messaging = app('firebase.messaging');
 
     // Ambil tanggal sekarang dan hitung tanggal deadline H-1
     $now = now();
