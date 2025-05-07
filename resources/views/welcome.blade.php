@@ -101,7 +101,7 @@
 </head>
 <body>
     <header class="header">
-        <h2>Admin Portal</h2>
+        <h2>Admin Simawar</h2>
     </header>
     
     <div class="container">
@@ -109,7 +109,7 @@
             <div class="admin-logo">
                 <i>👤</i>
             </div>
-            <h1>Admin Dashboard</h1>
+            <h1>Admin Rumah Jahit Mawar</h1>
             <p>Selamat datang di area administrasi. Silakan login untuk mengakses dashboard admin dan mengelola sistem Anda.</p>
             <a href="/admin" class="btn-login">Masuk Sebagai Admin</a>
         </div>
