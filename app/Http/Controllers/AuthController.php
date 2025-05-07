@@ -8,41 +8,52 @@ use App\Models\User;
 
 class AuthController extends Controller
 {
-    // Login hanya untuk role "karyawan"
-    public function login(Request $request)
-    {
-        $request->validate([
-            'email' => 'required|email',
-            'password' => 'required',
-        ]);
+   // Login hanya untuk role "karyawan"
+   public function login(Request $request)
+   {
+       $request->validate([
+           'email' => 'required|email',
+           'password' => 'required',
+           'fcm_token' => 'required|string', // Validate fcm_token
+       ]);
 
-        // Cari user berdasarkan email
-        $user = User::where('email', $request->email)->first();
+       // Cari user berdasarkan email
+       $user = User::where('email', $request->email)->first();
 
-        // Jika user tidak ditemukan
-        if (!$user) {
-            return response()->json(['message' => 'Email tidak ditemukan'], 404);
-        }
+       // Jika user tidak ditemukan
+       if (!$user) {
+           return response()->json(['message' => 'Email tidak ditemukan'], 404);
+       }
 
-        // Jika password salah
-        if (!Hash::check($request->password, $user->password)) {
-            return response()->json(['message' => 'Password salah'], 401);
-        }
+       // Jika password salah
+       if (!Hash::check($request->password, $user->password)) {
+           return response()->json(['message' => 'Password salah'], 401);
+       }
 
-        // Cek apakah user memiliki role "karyawan"
-        if ($user->role !== 'karyawan') {
-            return response()->json(['message' => 'Hanya karyawan yang bisa login'], 403);
-        }
+       // Cek apakah user memiliki role "karyawan"
+       if ($user->role !== 'karyawan') {
+           return response()->json(['message' => 'Hanya karyawan yang bisa login'], 403);
+       }
 
-        // Buat token untuk user
-        $token = $user->createToken('auth_token')->plainTextToken;
+       // Update fcm_tokens jika token ada
+       if ($request->has('fcm_token')) {
+           $tokens = $user->fcm_tokens ?? [];
+           if (!in_array($request->fcm_token, $tokens)) {
+               $tokens[] = $request->fcm_token;
+               $user->fcm_tokens = $tokens;
+               $user->save();
+           }
+       }
 
-        return response()->json([
-            'message' => 'Login berhasil',
-            'user' => $user,
-            'token' => $token,
-        ]);
-    }
+       // Buat token untuk user
+       $token = $user->createToken('auth_token')->plainTextToken;
+
+       return response()->json([
+           'message' => 'Login berhasil',
+           'user' => $user,
+           'token' => $token,
+       ]);
+   }
 
     public function logout(Request $request)
 {

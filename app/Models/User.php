@@ -29,6 +29,7 @@ class User extends Authenticatable
         'phone',
         'image',
         'role',
+        'fcm_tokens'
     ];
 
     /**
@@ -39,6 +40,11 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+    ];
+
+    protected $casts = [
+        // kolom lain
+        'fcm_tokens' => 'array',
     ];
 
     /**
