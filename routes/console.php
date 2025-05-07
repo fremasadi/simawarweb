@@ -249,11 +249,13 @@ Artisan::command('salary:calculate-deductions', function () {
                 $this->warn("Total gaji untuk user ID {$userId} kurang dari 0. Disetel ke 0.");
             }
 
-            $salary->update([
+            DB::table('salaries')
+            ->where('id', $salary->id)
+            ->update([
                 'total_deduction' => $totalDeduction,
                 'total_salary' => $newTotalSalary,
-                'status' => 'pending', // Atau status lainnya
-                'note' => $salary->note . " | Potongan diperbarui pada " . Carbon::now()->format('Y-m-d H:i:s'),
+                'status' => 'pending',
+                'note' => ($salary->note ?: '') . " | Potongan diperbarui pada " . Carbon::now()->format('Y-m-d H:i:s'),
             ]);
 
             // Debugging: Tampilkan nilai yang dihitung
@@ -462,3 +464,114 @@ Artisan::command('attendance:check', function () {
     return 0;
 })->purpose('Memeriksa dan mengisi absensi otomatis untuk karyawan yang tidak absen');
 
+
+Artisan::command('debug:salary-update {userId?}', function ($userId = null) {
+    $this->info("Starting salary update debug...");
+    
+    // Dapatkan bulan dan tahun saat ini untuk filter
+    $currentMonth = Carbon::now()->format('Y-m');
+    $this->info("Current period: {$currentMonth}");
+    
+    // Jika userId diberikan, hanya debug user tersebut
+    $query = Salary::query();
+    if ($userId) {
+        $query->where('user_id', $userId);
+        $this->info("Debugging specific user ID: {$userId}");
+    }
+    
+    // Ambil semua salary pada periode saat ini
+    $salaries = $query->whereRaw("DATE_FORMAT(pay_date, '%Y-%m') = ?", [$currentMonth])
+        ->orWhere(function($q) use ($currentMonth) {
+            // Untuk gaji yang dibayarkan di awal bulan berikutnya
+            $nextMonthFirstDay = Carbon::createFromFormat('Y-m', $currentMonth)
+                ->addMonth()
+                ->startOfMonth()
+                ->format('Y-m-d');
+            $q->where('pay_date', $nextMonthFirstDay);
+        })
+        ->get();
+    
+    if ($salaries->isEmpty()) {
+        $this->error("No salaries found for period {$currentMonth}");
+        return;
+    }
+    
+    $this->info("Found " . $salaries->count() . " salary records to examine");
+    
+    foreach ($salaries as $salary) {
+        $this->info("------- Salary ID: {$salary->id} -------");
+        $this->info("User ID: {$salary->user_id}");
+        $this->info("Pay Date: {$salary->pay_date}");
+        $this->info("Status: {$salary->status}");
+        $this->info("Current Total Salary: {$salary->total_salary}");
+        $this->info("Current Total Deduction: {$salary->total_deduction}");
+        
+        // Cek apakah ada SalarySetting yang terkait
+        $salarySetting = SalarySetting::find($salary->salary_setting_id);
+        if (!$salarySetting) {
+            $this->error("No SalarySetting found for this salary! (ID: {$salary->salary_setting_id})");
+            continue;
+        }
+        
+        $this->info("Base Salary: {$salarySetting->salary}");
+        
+        // Cek deduction histories untuk salary ini
+        $deductions = SalaryDeductionHistories::where('salary_id', $salary->id)->get();
+        $this->info("Found " . $deductions->count() . " deduction records");
+        
+        $totalCalculatedDeduction = 0;
+        foreach ($deductions as $deduction) {
+            $this->info("  - Deduction ID: {$deduction->id}");
+            $this->info("    Type: {$deduction->deduction_type}");
+            $this->info("    Amount: {$deduction->deduction_amount}");
+            $this->info("    Date: {$deduction->deduction_date}");
+            $totalCalculatedDeduction += $deduction->deduction_amount;
+        }
+        
+        $this->info("Total calculated deduction: {$totalCalculatedDeduction}");
+        $expectedSalary = $salarySetting->salary - $totalCalculatedDeduction;
+        if ($expectedSalary < 0) $expectedSalary = 0;
+        
+        $this->info("Expected total salary: {$expectedSalary}");
+        
+        // Cek perbedaan dengan nilai yang tersimpan
+        if ($salary->total_deduction != $totalCalculatedDeduction) {
+            $this->error("DISCREPANCY DETECTED in total_deduction!");
+            $this->error("Stored: {$salary->total_deduction} vs Calculated: {$totalCalculatedDeduction}");
+            
+            // Tawaran untuk memperbaiki
+            if ($this->confirm("Do you want to fix this discrepancy?")) {
+                DB::transaction(function() use ($salary, $totalCalculatedDeduction, $expectedSalary) {
+                    $salary->update([
+                        'total_deduction' => $totalCalculatedDeduction,
+                        'total_salary' => $expectedSalary,
+                        'note' => ($salary->note ?? '') . " | Fixed by debug command on " . now()->format('Y-m-d H:i:s')
+                    ]);
+                });
+                $this->info("Salary record updated successfully!");
+            }
+        } else {
+            $this->info("✓ Deduction amounts match correctly");
+        }
+        
+        if ($salary->total_salary != $expectedSalary) {
+            $this->error("DISCREPANCY DETECTED in total_salary!");
+            $this->error("Stored: {$salary->total_salary} vs Expected: {$expectedSalary}");
+            
+            // Tawaran untuk memperbaiki
+            if ($this->confirm("Do you want to fix this discrepancy?")) {
+                DB::transaction(function() use ($salary, $expectedSalary) {
+                    $salary->update([
+                        'total_salary' => $expectedSalary,
+                        'note' => ($salary->note ?? '') . " | Fixed by debug command on " . now()->format('Y-m-d H:i:s')
+                    ]);
+                });
+                $this->info("Salary record updated successfully!");
+            }
+        } else {
+            $this->info("✓ Total salary amounts match correctly");
+        }
+    }
+    
+    $this->info("Debug process completed!");
+});
