@@ -60,7 +60,7 @@ class SalaryResource extends Resource
                     ->label('Status Pembayaran')
                     ->options([
                         'pending' => 'Tertunda',
-                        'done' => 'Selesai',
+                        'paid' => 'Selesai',
                     ])
                     ->required(),
                 // Forms\Components\Textarea::make('note')
