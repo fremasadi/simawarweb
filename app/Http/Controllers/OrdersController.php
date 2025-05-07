@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Order;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Http;
 
 class OrdersController extends Controller
 {
@@ -57,42 +58,62 @@ class OrdersController extends Controller
     }
 
     public function takeOrder($id)
-    {
-        $user = Auth::user();
+{
+    $user = Auth::user();
 
-        if (!$user) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized'
-            ], 401);
-        }
-
-        $order = Order::find($id);
-
-        if (!$order) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Order tidak ditemukan'
-            ], 404);
-        }
-
-        if ($order->status !== 'ditugaskan') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Order ini sudah diambil atau selesai'
-            ], 400);
-        }
-
-        $order->status = 'dikerjakan';
-        $order->ditugaskan_ke = $user->id;
-        $order->save();
-
+    if (!$user) {
         return response()->json([
-            'success' => true,
-            'message' => 'Order berhasil diambil dan sedang dikerjakan',
-            'data' => $order
-        ]);
+            'success' => false,
+            'message' => 'Unauthorized'
+        ], 401);
     }
+
+    $order = Order::find($id);
+
+    if (!$order) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Order tidak ditemukan'
+        ], 404);
+    }
+
+    if ($order->status !== 'ditugaskan') {
+        return response()->json([
+            'success' => false,
+            'message' => 'Order ini sudah diambil atau selesai'
+        ], 400);
+    }
+
+    $order->status = 'dikerjakan';
+    $order->ditugaskan_ke = $user->id;
+    $order->save();
+
+    // Kirim WA lewat Fonnte
+    $phone = $order->phone;
+    $message = "Pesanan Anda sedang diproses oleh teknisi kami.";
+
+    try {
+        $response = Http::withHeaders([
+            'Authorization' => 'R5uHqhjeppTQbDefuzxY', // Ganti dengan token asli kamu
+        ])->post('https://api.fonnte.com/send', [
+            'target' => $phone,
+            'message' => $message,
+            'countryCode' => '62',
+        ]);
+
+        if ($response->failed()) {
+            logger()->error('Gagal kirim WA: ' . $response->body());
+        }
+    } catch (\Exception $e) {
+        logger()->error('Error kirim WA: ' . $e->getMessage());
+    }
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Order berhasil diambil dan sedang dikerjakan',
+        'data' => $order
+    ]);
+}
 
     public function getOngoingOrders(Request $request)
     {

@@ -20,7 +20,7 @@ class CreateOrder extends CreateRecord
 
         try {
             $response = Http::withHeaders([
-                'Authorization' => 'YuHu739HMs1gtWXzD1X7',
+                'Authorization' => 'R5uHqhjeppTQbDefuzxY',
             ])->post('https://api.fonnte.com/send', [
                 'target' => $phone,
                 'message' => $message,
