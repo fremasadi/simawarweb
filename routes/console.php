@@ -95,10 +95,10 @@ Artisan::command('send:firebase-notification', function () {
             foreach ($fcmTokens as $token) {
                 // Cek apakah deadline hari ini atau besok
                 $isToday = $order->deadline === $today;
-                $title = $isToday ? 'Urgent: Order Deadline Today!' : 'Reminder: Order Deadline Tomorrow';
+                $title = $isToday ? 'Penting: Batas Waktu Pemesanan Hari Ini!' : 'Pengingat: Batas Waktu Pemesanan Besok';
                 $body = $isToday 
-                    ? 'Your order "' . $order->name . '" is due today!'
-                    : 'Your order "' . $order->name . '" is due tomorrow!';
+                    ? 'Tugas Kamu "' . $order->name . '" jatuh tempo hari ini!'
+                    : 'Tugas Kamu "' . $order->name . '" jatuh tempo besok!';
                     
                 $this->info("Preparing message with title: $title");
                 
