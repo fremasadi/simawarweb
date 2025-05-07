@@ -97,8 +97,8 @@ Artisan::command('send:firebase-notification', function () {
                 $isToday = $order->deadline === $today;
                 $title = $isToday ? 'Penting: Batas Waktu Pemesanan Hari Ini!' : 'Pengingat: Batas Waktu Pemesanan Besok';
                 $body = $isToday 
-                    ? 'Tugas Kamu "' . $order->name . '" jatuh tempo hari ini!'
-                    : 'Tugas Kamu "' . $order->name . '" jatuh tempo besok!';
+                    ? 'Order atas nama "' . $order->name . '" jatuh tempo hari ini!'
+                    : 'Order atas nama "' . $order->name . '" jatuh tempo besok!';
                     
                 $this->info("Preparing message with title: $title");
                 
