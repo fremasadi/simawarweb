@@ -116,7 +116,7 @@
     </div>
     
     <footer class="footer">
-        <p>&copy; Rumah Jahit Mawar since 2015.</p>
+        <p>&copy; Rumah Jahit Mawar.</p>
     </footer>
 </body>
 </html>
