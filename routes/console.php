@@ -183,8 +183,7 @@ Artisan::command('send:firebase-notification', function () {
 
     $this->info('Firebase notifications process completed!');
 })->purpose('Mengirim notifikasi Firebase untuk order dengan deadline hari ini atau besok');
-// Perintah untuk menghitung pengurangan gaji
-// Perintah untuk menghitung pengurangan gaji
+
 // Perintah untuk menghitung pengurangan gaji
 Artisan::command('salary:calculate-deductions', function () {
     // Dapatkan bulan dan tahun saat ini untuk filter

@@ -47,11 +47,11 @@ class SalaryResource extends Resource
                 // Forms\Components\Select::make('salary_setting_id')
                 //     ->relationship('salarySetting', 'name')
                 //     ->required(),
-                Forms\Components\TextInput::make('total_salary')
+                Forms\Components\Placeholder::make('total_salary')
                     ->label('Total gaji')
                     ->required()
                     ->numeric(),
-                Forms\Components\TextInput::make('total_deduction')
+                Forms\Components\Placeholder::make('total_deduction')
                     ->label('Total Potongan')
                     ->required()
                     ->numeric()
