@@ -66,7 +66,7 @@ Artisan::command('send:firebase-notification', function () {
     // Get the Firebase Messaging instance from the service container
     $messaging = app('firebase.messaging');
 
-    // Untuk tracking waktu sekarang
+    // Untuk testing: Ambil order dengan deadline hari ini atau besok
     $now = now();
     $today = $now->format('Y-m-d');
     $tomorrow = $now->addDay()->format('Y-m-d');
@@ -83,17 +83,6 @@ Artisan::command('send:firebase-notification', function () {
 
     // Loop untuk setiap order
     foreach ($orders as $order) {
-        // 1. Cek apakah notifikasi untuk order ini sudah dikirim hari ini
-        $alreadySent = DB::table('notification_logs')
-            ->where('order_id', $order->id)
-            ->whereDate('created_at', now()->format('Y-m-d'))
-            ->exists();
-            
-        if ($alreadySent) {
-            $this->info("Notification for order #{$order->id} ({$order->name}) already sent today. Skipping.");
-            continue;
-        }
-        
         // Ambil pengguna yang ditugaskan untuk order ini
         $assignedUser = $order->user; // Menggunakan relasi user() yang sudah didefinisikan
         
@@ -102,22 +91,16 @@ Artisan::command('send:firebase-notification', function () {
             $fcmTokens = $assignedUser->fcm_tokens; // Pastikan fcm_tokens adalah array
             $this->info("User " . $assignedUser->name . " has FCM tokens: " . json_encode($fcmTokens));
             
-            // Cek apakah deadline hari ini atau besok
-            $isToday = $order->deadline === $today;
-            $title = $isToday ? 'Penting: Batas Waktu Pemesanan Hari Ini!' : 'Pengingat: Batas Waktu Pemesanan Besok';
-            $body = $isToday 
-                ? 'Order atas nama "' . $order->name . '" jatuh tempo hari ini!'
-                : 'Order atas nama "' . $order->name . '" jatuh tempo besok!';
-                
-            $this->info("Preparing message with title: $title");
-            
-            $notificationSent = false;
-            
-            // Hanya mencoba mengirim ke satu token yang valid
+            // Membuat pesan untuk dikirimkan
             foreach ($fcmTokens as $token) {
-                if ($notificationSent) {
-                    break; // Keluar dari loop jika sudah berhasil mengirim
-                }
+                // Cek apakah deadline hari ini atau besok
+                $isToday = $order->deadline === $today;
+                $title = $isToday ? 'Penting: Batas Waktu Pemesanan Hari Ini!' : 'Pengingat: Batas Waktu Pemesanan Besok';
+                $body = $isToday 
+                    ? 'Order atas nama "' . $order->name . '" jatuh tempo hari ini!'
+                    : 'Order atas nama "' . $order->name . '" jatuh tempo besok!';
+                    
+                $this->info("Preparing message with title: $title");
                 
                 $message = CloudMessage::withTarget('token', $token)
                     ->withNotification([
@@ -127,54 +110,14 @@ Artisan::command('send:firebase-notification', function () {
 
                 // Mengirim pesan
                 try {
-                    $this->info('Attempting to send notification for order #' . $order->id . ' to token: ' . $token);
+                    $this->info('Attempting to send notification for token: ' . $token);
                     $result = $messaging->send($message);
-                    
-                    // Tandai bahwa notifikasi sudah terkirim
-                    $notificationSent = true;
-                    
-                    // 2. Simpan log notifikasi ke database
-                    DB::table('notification_logs')->insert([
-                        'order_id' => $order->id,
-                        'user_id' => $assignedUser->id,
-                        'title' => $title,
-                        'body' => $body,
-                        'status' => 'sent',
-                        'fcm_response' => json_encode($result),
-                        'created_at' => now(),
-                        'updated_at' => now()
-                    ]);
-                    
                     $this->info('Notification sent to user with order: ' . $order->name);
                     $this->info('Firebase response: ' . json_encode($result));
-                    
-                    // Keluar dari loop setelah berhasil mengirim
-                    break;
-                    
                 } catch (\Exception $e) {
-                    $this->warn('Error sending notification to token: ' . $token);
-                    $this->warn('Error message: ' . $e->getMessage());
-                    
-                    // Jika gagal, coba token berikutnya
-                    continue;
+                    $this->error('Error sending notification: ' . $e->getMessage());
+                    $this->error('Error trace: ' . $e->getTraceAsString());
                 }
-            }
-            
-            // Jika sudah mencoba semua token tapi gagal semua
-            if (!$notificationSent) {
-                $this->error('Failed to send notification to any token for order: ' . $order->name);
-                
-                // Tetap catat upaya pengiriman ke log
-                DB::table('notification_logs')->insert([
-                    'order_id' => $order->id,
-                    'user_id' => $assignedUser->id,
-                    'title' => $title,
-                    'body' => $body,
-                    'status' => 'failed',
-                    'fcm_response' => json_encode(['error' => 'All tokens failed']),
-                    'created_at' => now(),
-                    'updated_at' => now()
-                ]);
             }
         } else {
             $this->info('No FCM tokens found for user assigned to order: ' . $order->name);
@@ -182,7 +125,7 @@ Artisan::command('send:firebase-notification', function () {
     }
 
     $this->info('Firebase notifications process completed!');
-})->purpose('Mengirim notifikasi Firebase untuk order dengan deadline hari ini atau besok');
+});
 // Perintah untuk menghitung pengurangan gaji
 // Perintah untuk menghitung pengurangan gaji
 // Perintah untuk menghitung pengurangan gaji
