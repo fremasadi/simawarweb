@@ -62,7 +62,8 @@ Artisan::command('check:firebase-setup', function () {
     $this->info('Firebase setup check completed');
 });
 
-Artisan::command('send:firebase-notification', function () {
+
+Artisan::command('send:firebase-notification {--test=} {--force} {--all-tokens}', function () {
     // Get the Firebase Messaging instance from the service container
     $messaging = app('firebase.messaging');
 
@@ -71,119 +72,229 @@ Artisan::command('send:firebase-notification', function () {
     $today = $now->format('Y-m-d');
     $tomorrow = $now->addDay()->format('Y-m-d');
     
-    // Log untuk debugging
-    $this->info("Looking for orders with deadlines on $today or $tomorrow");
+    // Cek apakah mode testing
+    $testOrderId = $this->option('test');
+    $forceNotification = $this->option('force');
+    $useAllTokens = $this->option('all-tokens');
     
-    // Ambil semua order yang deadline-nya adalah hari ini atau besok
-    $orders = Order::whereDate('deadline', $today)
-                  ->orWhereDate('deadline', $tomorrow)
-                  ->get();
-                  
+    if ($testOrderId) {
+        $this->info("TESTING MODE: Will send notification for order #{$testOrderId} regardless of deadline");
+        // Dapatkan order berdasarkan ID untuk testing
+        $orders = Order::where('id', $testOrderId)->get();
+        if ($orders->isEmpty()) {
+            $this->error("Order #{$testOrderId} not found!");
+            return 1;
+        }
+    } else {
+        // Log untuk debugging
+        $this->info("Looking for orders with deadlines on $today or $tomorrow");
+        
+        // Ambil semua order yang deadline-nya adalah hari ini atau besok
+        $orders = Order::whereDate('deadline', $today)
+                    ->orWhereDate('deadline', $tomorrow)
+                    ->get();
+    }
+    
     $this->info("Found " . $orders->count() . " orders with upcoming deadlines");
 
     // Loop untuk setiap order
     foreach ($orders as $order) {
-        // 1. Cek apakah notifikasi untuk order ini sudah dikirim hari ini
-        $alreadySent = DB::table('notification_logs')
-            ->where('order_id', $order->id)
-            ->whereDate('created_at', now()->format('Y-m-d'))
-            ->exists();
-            
-        if ($alreadySent) {
-            $this->info("Notification for order #{$order->id} ({$order->name}) already sent today. Skipping.");
-            continue;
+        // Cek apakah notifikasi untuk order ini sudah dikirim hari ini (kecuali mode force)
+        if (!$forceNotification) {
+            $alreadySent = DB::table('notification_logs')
+                ->where('order_id', $order->id)
+                ->whereDate('created_at', now()->format('Y-m-d'))
+                ->exists();
+                
+            if ($alreadySent) {
+                $this->info("Notification for order #{$order->id} ({$order->name}) already sent today. Skipping.");
+                continue;
+            }
+        } else {
+            $this->info("FORCE MODE: Sending notification for order #{$order->id} even if already sent today");
         }
         
         // Ambil pengguna yang ditugaskan untuk order ini
         $assignedUser = $order->user; // Menggunakan relasi user() yang sudah didefinisikan
         
-        if ($assignedUser && $assignedUser->fcm_tokens) {
-            // Mengambil fcm_tokens dari pengguna
-            $fcmTokens = $assignedUser->fcm_tokens; // Pastikan fcm_tokens adalah array
-            $this->info("User " . $assignedUser->name . " has FCM tokens: " . json_encode($fcmTokens));
-            
-            // Cek apakah deadline hari ini atau besok
-            $isToday = $order->deadline === $today;
-            $title = $isToday ? 'Penting: Batas Waktu Pemesanan Hari Ini!' : 'Pengingat: Batas Waktu Pemesanan Besok';
-            $body = $isToday 
-                ? 'Order atas nama "' . $order->name . '" jatuh tempo hari ini!'
-                : 'Order atas nama "' . $order->name . '" jatuh tempo besok!';
-                
-            $this->info("Preparing message with title: $title");
-            
-            $notificationSent = false;
-            
-            // Hanya mencoba mengirim ke satu token yang valid
-            foreach ($fcmTokens as $token) {
-                if ($notificationSent) {
-                    break; // Keluar dari loop jika sudah berhasil mengirim
+        if (!$assignedUser) {
+            $this->warn("No user assigned to order #{$order->id}");
+            continue;
+        }
+        
+        if (!$assignedUser->fcm_tokens || empty($assignedUser->fcm_tokens)) {
+            $this->warn("User {$assignedUser->name} (ID: {$assignedUser->id}) has no FCM tokens");
+            continue;
+        }
+        
+        // Mengambil fcm_tokens dari pengguna
+        $fcmTokens = $assignedUser->fcm_tokens; // Pastikan fcm_tokens adalah array
+        
+        // Debug untuk memastikan fcm_tokens benar-benar array
+        if (is_string($fcmTokens)) {
+            $this->warn("FCM tokens for user {$assignedUser->id} is a string, trying to decode JSON...");
+            try {
+                $fcmTokens = json_decode($fcmTokens, true);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    $this->error("Failed to decode FCM tokens: " . json_last_error_msg());
+                    continue;
                 }
-                
+            } catch (\Exception $e) {
+                $this->error("Exception while decoding FCM tokens: " . $e->getMessage());
+                continue;
+            }
+        }
+        
+        if (!is_array($fcmTokens)) {
+            $this->error("FCM tokens for user {$assignedUser->id} is not an array, type: " . gettype($fcmTokens));
+            continue;
+        }
+        
+        $this->info("User " . $assignedUser->name . " has " . count($fcmTokens) . " FCM tokens");
+        
+        // Cek apakah deadline hari ini atau besok
+        $deadlineDate = Carbon::parse($order->deadline)->format('Y-m-d');
+        $isToday = $deadlineDate === $today;
+        
+        $title = $isToday ? 'Penting: Batas Waktu Pemesanan Hari Ini!' : 'Pengingat: Batas Waktu Pemesanan Besok';
+        $body = $isToday 
+            ? 'Order atas nama "' . $order->name . '" jatuh tempo hari ini!'
+            : 'Order atas nama "' . $order->name . '" jatuh tempo besok!';
+            
+        $this->info("Preparing message with title: $title");
+        $this->info("Message body: $body");
+        
+        $notificationSent = false;
+        $failedTokens = [];
+        
+        // Kirim ke semua token atau hanya satu token yang valid
+        foreach ($fcmTokens as $index => $token) {
+            if ($notificationSent && !$useAllTokens) {
+                $this->info("Already sent to one token, skipping remaining tokens");
+                break; // Keluar dari loop jika sudah berhasil mengirim (kecuali opsi all-tokens)
+            }
+            
+            $message = null;
+            
+            try {
+                // Tambahkan data payload untuk membantu debugging client
                 $message = CloudMessage::withTarget('token', $token)
                     ->withNotification([
                         'title' => $title,
-                        'body' => $body
-                    ]);
-
-                // Mengirim pesan
-                try {
-                    $this->info('Attempting to send notification for order #' . $order->id . ' to token: ' . $token);
-                    $result = $messaging->send($message);
-                    
-                    // Tandai bahwa notifikasi sudah terkirim
-                    $notificationSent = true;
-                    
-                    // 2. Simpan log notifikasi ke database
-                    DB::table('notification_logs')->insert([
-                        'order_id' => $order->id,
-                        'user_id' => $assignedUser->id,
-                        'title' => $title,
                         'body' => $body,
-                        'status' => 'sent',
-                        'fcm_response' => json_encode($result),
-                        'created_at' => now(),
-                        'updated_at' => now()
+                    ])
+                    ->withData([
+                        'order_id' => (string)$order->id,
+                        'timestamp' => (string)now()->timestamp,
+                        'deadline' => $order->deadline,
+                        'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
                     ]);
-                    
-                    $this->info('Notification sent to user with order: ' . $order->name);
-                    $this->info('Firebase response: ' . json_encode($result));
-                    
-                    // Keluar dari loop setelah berhasil mengirim
-                    break;
-                    
-                } catch (\Exception $e) {
-                    $this->warn('Error sending notification to token: ' . $token);
-                    $this->warn('Error message: ' . $e->getMessage());
-                    
-                    // Jika gagal, coba token berikutnya
-                    continue;
-                }
-            }
-            
-            // Jika sudah mencoba semua token tapi gagal semua
-            if (!$notificationSent) {
-                $this->error('Failed to send notification to any token for order: ' . $order->name);
                 
-                // Tetap catat upaya pengiriman ke log
+                // Menambahkan high priority dan TTL yang lebih lama
+                $config = [
+                    'android' => [
+                        'priority' => 'high',
+                        'ttl' => '86400s' // 24 jam
+                    ],
+                    'apns' => [
+                        'headers' => [
+                            'apns-priority' => '10',
+                        ],
+                        'payload' => [
+                            'aps' => [
+                                'alert' => [
+                                    'title' => $title,
+                                    'body' => $body,
+                                ],
+                                'sound' => 'default',
+                                'badge' => 1,
+                                'content-available' => 1
+                            ],
+                        ],
+                    ],
+                ];
+                
+                $message = $message->withAndroidConfig($config['android'])
+                            ->withApnsConfig($config['apns']);
+                
+            } catch (\Exception $e) {
+                $this->error("Error creating message object: " . $e->getMessage());
+                continue;
+            }
+
+            // Mengirim pesan
+            try {
+                $this->info("Sending notification for order #{$order->id} (token " . ($index + 1) . " of " . count($fcmTokens) . "): " . substr($token, 0, 20) . "...");
+                
+                $result = $messaging->send($message);
+                
+                // Tandai bahwa notifikasi sudah terkirim
+                $notificationSent = true;
+                
+                // Simpan log notifikasi ke database
                 DB::table('notification_logs')->insert([
                     'order_id' => $order->id,
                     'user_id' => $assignedUser->id,
                     'title' => $title,
                     'body' => $body,
-                    'status' => 'failed',
-                    'fcm_response' => json_encode(['error' => 'All tokens failed']),
+                    'status' => 'sent',
+                    'fcm_token' => $token,
+                    'fcm_response' => json_encode($result),
                     'created_at' => now(),
                     'updated_at' => now()
                 ]);
+                
+                $this->info("✓ Notification sent successfully for token " . ($index + 1));
+                $this->info("Firebase response: " . json_encode($result));
+                
+                // Jika tidak perlu kirim ke semua token, hentikan setelah berhasil
+                if (!$useAllTokens) {
+                    break;
+                }
+                
+            } catch (\Kreait\Firebase\Exception\MessagingException $e) {
+                $failedTokens[] = $token;
+                $errorMessage = $e->getMessage();
+                $this->warn("Firebase Exception: " . $errorMessage);
+                
+                // Cek apakah token tidak valid (agar bisa dihapus nanti)
+                if (strpos($errorMessage, 'registration-token-not-registered') !== false) {
+                    $this->error("Token is no longer valid! Consider removing it from the database");
+                    
+                    // Opsi: Hapus token yang tidak valid dari database di sini
+                    // $this->removeInvalidToken($assignedUser->id, $token);
+                }
+                
+                // Jika gagal, coba token berikutnya
+                continue;
+            } catch (\Exception $e) {
+                $failedTokens[] = $token;
+                $this->error("General Exception: " . $e->getMessage());
+                continue;
             }
-        } else {
-            $this->info('No FCM tokens found for user assigned to order: ' . $order->name);
+        }
+        
+        // Jika sudah mencoba semua token tapi gagal semua
+        if (!$notificationSent) {
+            $this->error("Failed to send notification to ANY token for order #{$order->id} ({$order->name})");
+            
+            // Tetap catat upaya pengiriman ke log
+            DB::table('notification_logs')->insert([
+                'order_id' => $order->id,
+                'user_id' => $assignedUser->id,
+                'title' => $title,
+                'body' => $body,
+                'status' => 'failed',
+                'fcm_token' => implode(',', array_slice($failedTokens, 0, 3)), // simpan beberapa token gagal
+                'fcm_response' => json_encode(['error' => 'All tokens failed', 'failed_count' => count($failedTokens)]),
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
         }
     }
 
     $this->info('Firebase notifications process completed!');
 })->purpose('Mengirim notifikasi Firebase untuk order dengan deadline hari ini atau besok');
-
 // Perintah untuk menghitung pengurangan gaji
 Artisan::command('salary:calculate-deductions', function () {
     // Dapatkan bulan dan tahun saat ini untuk filter
