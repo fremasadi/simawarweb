@@ -29,16 +29,57 @@ use Kreait\Firebase\Messaging;
 | simple approach to interacting with each command's IO methods.
 |
 */
+Artisan::command('check:firebase-setup', function () {
+    $this->info('Checking Firebase setup...');
+    
+    // Check if the firebase config file exists
+    if (file_exists(config_path('firebase.php'))) {
+        $this->info('✓ Firebase config file exists');
+    } else {
+        $this->error('✗ Firebase config file is missing');
+    }
+    
+    // Check if firebase services are registered
+    try {
+        $messaging = app('firebase.messaging');
+        $this->info('✓ Firebase messaging service is registered');
+    } catch (\Exception $e) {
+        $this->error('✗ Firebase messaging service is not properly registered: ' . $e->getMessage());
+    }
+    
+    // Check for credentials file
+    $credentialsPath = config('firebase.credentials.file');
+    if ($credentialsPath) {
+        if (file_exists($credentialsPath)) {
+            $this->info('✓ Firebase credentials file exists at: ' . $credentialsPath);
+        } else {
+            $this->error('✗ Firebase credentials file is missing at: ' . $credentialsPath);
+        }
+    } else {
+        $this->warn('! Firebase credentials file path is not set in config');
+    }
+    
+    $this->info('Firebase setup check completed');
+});
+
 Artisan::command('send:firebase-notification', function () {
     // Get the Firebase Messaging instance from the service container
     $messaging = app('firebase.messaging');
 
-    // Ambil tanggal sekarang dan hitung tanggal deadline H-1
+    // Untuk testing: Ambil order dengan deadline hari ini atau besok
     $now = now();
-    $oneDayBefore = $now->addDay()->format('Y-m-d'); // H-1 (1 hari sebelum deadline)
-
-    // Ambil semua order yang deadline-nya adalah H-1
-    $orders = Order::whereDate('deadline', $oneDayBefore)->get();
+    $today = $now->format('Y-m-d');
+    $tomorrow = $now->addDay()->format('Y-m-d');
+    
+    // Log untuk debugging
+    $this->info("Looking for orders with deadlines on $today or $tomorrow");
+    
+    // Ambil semua order yang deadline-nya adalah hari ini atau besok
+    $orders = Order::whereDate('deadline', $today)
+                  ->orWhereDate('deadline', $tomorrow)
+                  ->get();
+                  
+    $this->info("Found " . $orders->count() . " orders with upcoming deadlines");
 
     // Loop untuk setiap order
     foreach ($orders as $order) {
@@ -48,21 +89,34 @@ Artisan::command('send:firebase-notification', function () {
         if ($assignedUser && $assignedUser->fcm_tokens) {
             // Mengambil fcm_tokens dari pengguna
             $fcmTokens = $assignedUser->fcm_tokens; // Pastikan fcm_tokens adalah array
+            $this->info("User " . $assignedUser->name . " has FCM tokens: " . json_encode($fcmTokens));
             
             // Membuat pesan untuk dikirimkan
             foreach ($fcmTokens as $token) {
-                $message = CloudMessage::withTarget(RegistrationToken::fromValue($token))
+                // Cek apakah deadline hari ini atau besok
+                $isToday = $order->deadline === $today;
+                $title = $isToday ? 'Urgent: Order Deadline Today!' : 'Reminder: Order Deadline Tomorrow';
+                $body = $isToday 
+                    ? 'Your order "' . $order->name . '" is due today!'
+                    : 'Your order "' . $order->name . '" is due tomorrow!';
+                    
+                $this->info("Preparing message with title: $title");
+                
+                $message = CloudMessage::withTarget('token', $token)
                     ->withNotification([
-                        'title' => 'Reminder: Order Deadline Tomorrow',
-                        'body' => 'Your order "' . $order->name . '" is due tomorrow!'
+                        'title' => $title,
+                        'body' => $body
                     ]);
 
                 // Mengirim pesan
                 try {
-                    $messaging->send($message);
+                    $this->info('Attempting to send notification for token: ' . $token);
+                    $result = $messaging->send($message);
                     $this->info('Notification sent to user with order: ' . $order->name);
+                    $this->info('Firebase response: ' . json_encode($result));
                 } catch (\Exception $e) {
                     $this->error('Error sending notification: ' . $e->getMessage());
+                    $this->error('Error trace: ' . $e->getTraceAsString());
                 }
             }
         } else {
