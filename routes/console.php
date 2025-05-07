@@ -12,7 +12,11 @@ use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 use Illuminate\Support\Facades\Schedule;
-
+use App\Models\Order;
+use Kreait\Firebase\Messaging\CloudMessage;
+use Kreait\Firebase\Messaging\RegistrationToken;
+use Kreait\Firebase\Messaging\FirebaseMessaging;
+use Illuminate\Support\Facades\Notification;
 /*
 |--------------------------------------------------------------------------
 | Console Routes
@@ -23,7 +27,48 @@ use Illuminate\Support\Facades\Schedule;
 | simple approach to interacting with each command's IO methods.
 |
 */
+Artisan::command('send:firebase-notification', function () {
+    $messaging = app(FirebaseMessaging::class);
 
+    // Ambil tanggal sekarang dan hitung tanggal deadline H-1
+    $now = now();
+    $oneDayBefore = $now->addDay()->format('Y-m-d'); // H-1 (1 hari sebelum deadline)
+
+    // Ambil semua order yang deadline-nya adalah H-1
+    $orders = Order::whereDate('deadline', $oneDayBefore)->get();
+
+    // Loop untuk setiap order
+    foreach ($orders as $order) {
+        // Ambil pengguna yang ditugaskan untuk order ini
+        $assignedUser = $order->user; // Menggunakan relasi user() yang sudah didefinisikan
+        
+        if ($assignedUser && $assignedUser->fcm_tokens) {
+            // Mengambil fcm_tokens dari pengguna
+            $fcmTokens = $assignedUser->fcm_tokens; // Pastikan fcm_tokens adalah array
+            
+            // Membuat pesan untuk dikirimkan
+            foreach ($fcmTokens as $token) {
+                $message = CloudMessage::withTarget(RegistrationToken::fromValue($token))
+                    ->withNotification([
+                        'title' => 'Reminder: Order Deadline Tomorrow',
+                        'body' => 'Your order "' . $order->name . '" is due tomorrow!'
+                    ]);
+
+                // Mengirim pesan
+                try {
+                    $messaging->send($message);
+                    $this->info('Notification sent to user with order: ' . $order->name);
+                } catch (\Exception $e) {
+                    $this->error('Error sending notification: ' . $e->getMessage());
+                }
+            }
+        } else {
+            $this->info('No FCM tokens found for user assigned to order: ' . $order->name);
+        }
+    }
+
+    $this->info('Firebase notifications process completed!');
+});
 // Perintah untuk menghitung pengurangan gaji
 Artisan::command('salary:calculate-deductions', function () {
     // Dapatkan bulan dan tahun saat ini untuk filter
