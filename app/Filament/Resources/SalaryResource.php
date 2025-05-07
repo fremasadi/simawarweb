@@ -109,8 +109,36 @@ class SalaryResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                //
+                Tables\Filters\SelectFilter::make('bulan')
+                    ->label('Filter Bulan')
+                    ->options(
+                        collect(range(1, 12))->mapWithKeys(function ($month) {
+                            return [$month => \Carbon\Carbon::create()->month($month)->translatedFormat('F')];
+                        })->toArray()
+                    )
+                    ->query(function (Builder $query, array $data): Builder {
+                        return $query->when($data['value'], function ($query, $month) {
+                            return $query->whereMonth('pay_date', $month);
+                        });
+                    }),
+            
+                Tables\Filters\SelectFilter::make('tahun')
+                    ->label('Filter Tahun')
+                    ->options(
+                        Salary::query()
+                            ->selectRaw('YEAR(pay_date) as year')
+                            ->distinct()
+                            ->orderBy('year', 'desc')
+                            ->pluck('year', 'year')
+                            ->toArray()
+                    )
+                    ->query(function (Builder $query, array $data): Builder {
+                        return $query->when($data['value'], function ($query, $year) {
+                            return $query->whereYear('pay_date', $year);
+                        });
+                    }),
             ])
+            
             ->actions([
                 Tables\Actions\EditAction::make(),
             ])
