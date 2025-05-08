@@ -23,7 +23,12 @@ class EditSalarySetting extends EditRecord
     {
         // Update semua data gaji yang terkait dengan pengaturan gaji ini
         Salary::where('salary_setting_id', $this->record->id)
-            ->update(['total_salary' => $this->record->salary]);
+            ->get()
+            ->each(function ($salary) {
+                $salary->total_salary = $this->record->salary - $salary->total_deduction;
+                $salary->save();
+            });
+
             
         // Tampilkan notifikasi sukses
         Notification::make()
