@@ -183,55 +183,57 @@ class OrdersController extends Controller
     }
 
     public function getCompletedOrders(Request $request)
-    {
-        $user = $request->user();
+{
+    $user = $request->user();
 
-        if (!$user) {
-            return response()->json([
-                'success' => false,
-                'message' => 'User tidak ditemukan.'
-            ], 404);
-        }
+    if (!$user) {
+        return response()->json([
+            'success' => false,
+            'message' => 'User tidak ditemukan.'
+        ], 404);
+    }
 
-        $orders = Order::with(['sizeModel'])
-            ->where('ditugaskan_ke', $user->id)
-            ->where('status', 'selesai')
-            ->get();
+    $orders = Order::with(['sizeModel'])
+        ->where('ditugaskan_ke', $user->id)
+        ->where('status', 'selesai')
+        ->orderBy('created_at', 'desc') // Urutkan descending
+        ->get();
 
-        if ($orders->isEmpty()) {
-            return response()->json([
-                'success' => true,
-                'message' => 'Tidak ada pesanan yang telah selesai.',
-                'data' => []
-            ]);
-        }
-
-        $formattedOrders = $orders->map(function ($order) {
-            $imageUrls = collect($order->images ?? [])->map(function ($img) {
-                return is_array($img) && isset($img['photo']) ? asset('storage/' . $img['photo']) : null;
-            })->filter()->values()->all();
-
-            return [
-                'id' => $order->id,
-                'name' => $order->name,
-                'address' => $order->address,
-                'deadline' => $order->deadline,
-                'phone' => $order->phone,
-                'images' => $imageUrls,
-                'quantity' => $order->quantity,
-                'size_model' => optional($order->sizeModel)->name,
-                'size' => $order->size,
-                'status' => $order->status,
-                'ditugaskan_ke' => $order->ditugaskan_ke,
-                'created_at' => $order->created_at,
-                'updated_at' => $order->updated_at,
-            ];
-        });
-
+    if ($orders->isEmpty()) {
         return response()->json([
             'success' => true,
-            'message' => 'Data pesanan selesai berhasil diambil.',
-            'data' => $formattedOrders
+            'message' => 'Tidak ada pesanan yang telah selesai.',
+            'data' => []
         ]);
     }
+
+    $formattedOrders = $orders->map(function ($order) {
+        $imageUrls = collect($order->images ?? [])->map(function ($img) {
+            return is_array($img) && isset($img['photo']) ? asset('storage/' . $img['photo']) : null;
+        })->filter()->values()->all();
+
+        return [
+            'id' => $order->id,
+            'name' => $order->name,
+            'address' => $order->address,
+            'deadline' => $order->deadline,
+            'phone' => $order->phone,
+            'images' => $imageUrls,
+            'quantity' => $order->quantity,
+            'size_model' => optional($order->sizeModel)->name,
+            'size' => $order->size,
+            'status' => $order->status,
+            'ditugaskan_ke' => $order->ditugaskan_ke,
+            'created_at' => $order->created_at,
+            'updated_at' => $order->updated_at,
+        ];
+    });
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Data pesanan selesai berhasil diambil.',
+        'data' => $formattedOrders
+    ]);
+}
+
 }

@@ -42,7 +42,7 @@ class SalaryHistoryController extends Controller
         ->get();
 
     if ($deductions->isEmpty()) {
-        return response()->json([
+        return response()->json([   
             'status' => 'not_found',
             'message' => 'Tidak ada potongan untuk salary_id ini.',
         ], 404);
