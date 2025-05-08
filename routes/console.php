@@ -70,13 +70,13 @@ Artisan::command('send:firebase-notification', function () {
     $today = $now->format('Y-m-d');
     $tomorrow = $now->addDay()->format('Y-m-d');
 
-    $this->info("Looking for orders with deadlines on $today or $tomorrow");
+    $this->info("Looking for orders with deadlines on $today or $tomorrow and status 'dikerjakan'");
 
-    $orders = Order::whereDate('deadline', $today)
-                  ->orWhereDate('deadline', $tomorrow)
-                  ->get();
+    $orders = Order::whereIn('deadline', [$today, $tomorrow])
+        ->where('status', 'dikerjakan')
+        ->get();
 
-    $this->info("Found " . $orders->count() . " orders with upcoming deadlines");
+    $this->info("Found " . $orders->count() . " orders with status 'dikerjakan' and upcoming deadlines");
 
     foreach ($orders as $order) {
         $assignedUser = $order->user;
@@ -89,15 +89,15 @@ Artisan::command('send:firebase-notification', function () {
                 ? 'Penting: Batas Waktu Pemesanan Hari Ini!' 
                 : 'Pengingat: Batas Waktu Pemesanan Besok';
             $body = $isToday 
-                ? 'Order atas nama "' . $order->name . '" jatuh tempo hari ini!' 
-                : 'Order atas nama "' . $order->name . '" jatuh tempo besok!';
+                ? 'Order "' . $order->name . '" harus diselesaikan hari ini.' 
+                : 'Order "' . $order->name . '" harus diselesaikan besok.';
 
-            $this->info("Preparing message for token: $token");
+            $this->info("Preparing message for user " . $assignedUser->name);
 
             $message = CloudMessage::withTarget('token', $token)
                 ->withNotification([
                     'title' => $title,
-                    'body' => $body
+                    'body' => $body,
                 ]);
 
             try {
@@ -108,12 +108,13 @@ Artisan::command('send:firebase-notification', function () {
                 $this->error('Error sending notification: ' . $e->getMessage());
             }
         } else {
-            $this->info('No FCM token found for user assigned to order: ' . $order->name);
+            $this->info('No FCM token for user of order: ' . $order->name);
         }
     }
 
     $this->info('Firebase notifications process completed!');
 });
+
 
 // Perintah untuk menghitung pengurangan gaji
 Artisan::command('salary:calculate-deductions', function () {
