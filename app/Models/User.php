@@ -42,10 +42,10 @@ class User extends Authenticatable
         'remember_token',
     ];
 
-    protected $casts = [
-        // kolom lain
-        'fcm_tokens' => 'array',
-    ];
+    // protected $casts = [
+    //     // kolom lain
+    //     'fcm_tokens' => 'array',
+    // ];
 
     /**
      * Get the attributes that should be cast.
