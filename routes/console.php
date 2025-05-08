@@ -70,16 +70,16 @@ Artisan::command('send:firebase-notification', function () {
     $today = $now->format('Y-m-d');
     $tomorrow = $now->addDay()->format('Y-m-d');
 
-    $this->info("Looking for orders with deadlines on $today or $tomorrow");
+    $this->info("Looking for orders with status 'dikerjakan' and deadlines on $today or $tomorrow");
 
     $orders = Order::where('status', 'dikerjakan')
-              ->where(function($query) use ($today, $tomorrow) {
-                  $query->whereDate('deadline', $today)
-                        ->orWhereDate('deadline', $tomorrow);
-              })
-              ->get();
+                  ->where(function($query) use ($today, $tomorrow) {
+                      $query->whereDate('deadline', $today)
+                            ->orWhereDate('deadline', $tomorrow);
+                  })
+                  ->get();
 
-    $this->info("Found " . $orders->count() . " orders with upcoming deadlines");
+    $this->info("Found " . $orders->count() . " orders with status 'dikerjakan' and upcoming deadlines");
 
     foreach ($orders as $order) {
         $assignedUser = $order->user;
