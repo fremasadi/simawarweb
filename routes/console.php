@@ -82,6 +82,16 @@ Artisan::command('send:firebase-notification', function () {
     $this->info("Found " . $orders->count() . " orders with status 'dikerjakan' and upcoming deadlines");
 
     foreach ($orders as $order) {
+        // Periksa apakah notifikasi untuk order ini sudah pernah dikirim
+        $notificationExists = DB::table('notification_logs')
+            ->where('order_id', $order->id)
+            ->exists();
+        
+        if ($notificationExists) {
+            $this->info("Notification for order ID: {$order->id} already sent. Skipping...");
+            continue; // Lewati order ini dan lanjut ke order berikutnya
+        }
+
         $assignedUser = $order->user;
 
         if ($assignedUser && $assignedUser->fcm_token) {
@@ -106,9 +116,41 @@ Artisan::command('send:firebase-notification', function () {
             try {
                 $this->info('Sending notification to token: ' . $token);
                 $result = $messaging->send($message);
-                $this->info('Notification sent successfully. Firebase response: ' . json_encode($result));
+                $fcmResponse = json_encode($result);
+                $this->info('Notification sent successfully. Firebase response: ' . $fcmResponse);
+                
+                // Simpan log notifikasi
+                DB::table('notification_logs')->insert([
+                    'order_id' => $order->id,
+                    'user_id' => $assignedUser->id,
+                    'title' => $title,
+                    'body' => $body,
+                    'status' => 'sent',
+                    'fcm_token' => $token,
+                    'fcm_response' => $fcmResponse,
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ]);
+                
+                $this->info("Notification log created for order ID: {$order->id}");
+                
             } catch (\Exception $e) {
                 $this->error('Error sending notification: ' . $e->getMessage());
+                
+                // Simpan log jika notifikasi gagal
+                DB::table('notification_logs')->insert([
+                    'order_id' => $order->id,
+                    'user_id' => $assignedUser->id,
+                    'title' => $title,
+                    'body' => $body,
+                    'status' => 'failed',
+                    'fcm_token' => $token,
+                    'fcm_response' => $e->getMessage(),
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ]);
+                
+                $this->info("Failed notification log created for order ID: {$order->id}");
             }
         } else {
             $this->info('No FCM token found for user assigned to order: ' . $order->name);
