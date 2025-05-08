@@ -20,21 +20,26 @@ class EditSalarySetting extends EditRecord
     }
 
     protected function afterSave(): void
-    {
-        // Update semua data gaji yang terkait dengan pengaturan gaji ini
-        Salary::where('salary_setting_id', $this->record->id)
-            ->get()
-            ->each(function ($salary) {
-                $salary->total_salary = $this->record->salary - $salary->total_deduction;
-                $salary->save();
-            });
+{
+    // Ambil ID dari salary_setting yang sedang diedit
+    $salarySettingId = $this->record->id;
+    $newSalary = $this->record->salary;
 
-            
-        // Tampilkan notifikasi sukses
-        Notification::make()
-            ->title('Pengaturan gaji berhasil disimpan')
-            ->body('Total gaji karyawan berhasil diperbarui')
-            ->success()
-            ->send();
-    }
+    // Update hanya salaries dengan pay_date yang sudah lewat
+    Salary::where('salary_setting_id', $salarySettingId)
+        ->whereDate('pay_date', '<', now()->toDateString())
+        ->get()
+        ->each(function ($salary) use ($newSalary) {
+            $salary->total_salary = $newSalary - $salary->total_deduction;
+            $salary->save();
+        });
+
+    // Tampilkan notifikasi sukses
+    Notification::make()
+        ->title('Pengaturan gaji berhasil disimpan')
+        ->body('Total gaji karyawan yang sudah jatuh tempo berhasil diperbarui')
+        ->success()
+        ->send();
+}
+
 }
