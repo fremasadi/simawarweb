@@ -12,18 +12,22 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->string('fcm_token')->nullable()->after('remember_token');
-        });
+ // Hapus kolom json lama jika ada
+ if (Schema::hasColumn('users', 'fcm_tokens')) {
+    $table->dropColumn('fcm_tokens');
+}
+
+// Tambahkan kolom string baru
+$table->string('fcm_token')->nullable()->after('remember_token');        });
     }
 
     /**
      * Reverse the migrations.
      */
     public function down(): void
-{
-    Schema::table('users', function (Blueprint $table) {
-        $table->dropColumn('fcm_token');
-    });
-}
-
+    {
+        Schema::table('users', function (Blueprint $table) {
+            //
+        });
+    }
 };
