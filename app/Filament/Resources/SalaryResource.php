@@ -144,6 +144,14 @@ class SalaryResource extends Resource
                             return $query->whereYear('pay_date', $year);
                         });
                     }),
+                    Tables\Filters\SelectFilter::make('status')
+        ->label('Filter Status')
+        ->options([
+            'pending' => 'Tertunda',
+            'paid' => 'Selesai',
+        ])
+        ->default(null)
+        ->placeholder('Semua Status'),
             ])
             
             ->actions([
