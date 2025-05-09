@@ -78,11 +78,11 @@ class SalaryResource extends Resource
                     ->label('Nama')
                     ->numeric()
                     ->sortable(),
-                    Tables\Columns\TextColumn::make('salarySetting.salary')
-                    ->label('Gaji')
-                    ->numeric()
-                    ->sortable()
-                    ->money('Rp.'), // Opsional: format sebagai mata uang
+                Tables\Columns\TextColumn::make('base_salary')
+                ->label('Gaji Pokok')
+                ->numeric()
+                ->sortable()
+                ->money('Rp.'),
                 Tables\Columns\TextColumn::make('total_deduction')
                     ->label('Potongan')
                     ->numeric()
