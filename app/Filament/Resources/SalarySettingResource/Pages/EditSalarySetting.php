@@ -1,50 +1,58 @@
 <?php
 
-namespace App\Filament\Resources\SalarySettingResource\Pages;
+namespace App\Filament\Resources\SalaryResource\Pages;
 
-use App\Filament\Resources\SalarySettingResource;
-use Filament\Actions;
+use App\Filament\Resources\SalaryResource;
 use Filament\Resources\Pages\EditRecord;
+use Illuminate\Database\Eloquent\Model;
 use Filament\Notifications\Notification;
-use Illuminate\Support\Facades\Artisan;
-use App\Models\Salary;
+use Carbon\Carbon;
 
-class EditSalarySetting extends EditRecord
+class EditSalary extends EditRecord
 {
-    protected static string $resource = SalarySettingResource::class;
-
-    protected function getHeaderActions(): array
-    {
-        return [
-        ];
-    }
-
+    protected static string $resource = SalaryResource::class;
+    
+    // Ini akan dipanggil ketika record disimpan
     protected function afterSave(): void
     {
-        $salarySetting = $this->record;
-        $salarySettingId = $salarySetting->id;
-        $baseSalary = $salarySetting->salary;
-    
-        // Ambil semua salaries dengan setting ini dan pay_date < hari ini
-        $salaries = Salary::where('salary_setting_id', $salarySettingId)
-            ->where('pay_date', '<', now()->startOfDay())
-            ->get();
-    
-        $updatedCount = 0;
-    
-        foreach ($salaries as $salary) {
-            $deduction = $salary->total_deduction ?? 0;
-            $salary->total_salary = $baseSalary - $deduction;
-            $salary->save();
-            $updatedCount++;
+        // Jika base_salary berubah, beri notifikasi
+        if ($this->record->wasChanged('base_salary')) {
+            Notification::make()
+                ->title('Gaji Pokok Diperbarui')
+                ->body('Gaji pokok telah diubah dan total gaji telah dihitung ulang.')
+                ->success()
+                ->send();
         }
-    
-        Notification::make()
-            ->title('Update Gaji')
-            ->body("Berhasil memperbarui total gaji untuk $updatedCount entri salary dengan perhitungan yang benar.")
-            ->success()
-            ->send();
     }
     
-
+    // Cek apakah pembayaran sudah lewat tanggalnya
+    protected function isPaymentPassed(): bool
+    {
+        return Carbon::parse($this->record->pay_date)->startOfDay()->lt(now()->startOfDay());
+    }
+    
+    // Cek apakah pembayaran sudah dibayar
+    protected function isPaid(): bool
+    {
+        return $this->record->status === 'paid';
+    }
+    
+    // Override form untuk menonaktifkan field pada kondisi tertentu
+    protected function getFormSchema(): array
+    {
+        $schema = parent::getFormSchema();
+        
+        // Jika pembayaran sudah lewat tanggalnya atau sudah dibayar
+        if ($this->isPaymentPassed() || $this->isPaid()) {
+            // Cari field base_salary dan nonaktifkan
+            foreach ($schema as $key => $field) {
+                if ($field->getName() === 'base_salary') {
+                    $schema[$key] = $field->disabled();
+                    break;
+                }
+            }
+        }
+        
+        return $schema;
+    }
 }
