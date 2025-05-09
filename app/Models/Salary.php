@@ -67,6 +67,12 @@ class Salary extends Model
                 $salary->base_salary = $salary->salarySetting->salary;
             }
             
+            // Set pay_date ke bulan berikutnya jika belum diisi
+            if (empty($salary->pay_date)) {
+                $today = Carbon::now();
+                $salary->pay_date = $today->copy()->addMonth(); // Tanggal yang sama bulan depan
+            }
+            
             // Hitung total_salary
             $salary->recalculateTotalSalary();
         });

@@ -355,107 +355,107 @@ Artisan::command('salary:calculate-deductions', function () {
     }
 })->purpose('Hitung pengurangan gaji berdasarkan data absensi, perbarui data gaji, dan simpan riwayat potongan');
 
-// Perintah untuk generate gaji karyawan
-Artisan::command('salary:generate', function () {
-    $this->info("Memulai proses generate gaji...");
+// // Perintah untuk generate gaji karyawan
+// Artisan::command('salary:generate', function () {
+//     $this->info("Memulai proses generate gaji...");
     
-    // Ambil semua user dengan role "karyawan"
-    $users = User::where('role', 'karyawan')->get();
+//     // Ambil semua user dengan role "karyawan"
+//     $users = User::where('role', 'karyawan')->get();
     
-    if ($users->isEmpty()) {
-        $this->warn("Tidak ada karyawan yang ditemukan.");
-        return 0;
-    }
+//     if ($users->isEmpty()) {
+//         $this->warn("Tidak ada karyawan yang ditemukan.");
+//         return 0;
+//     }
     
-    $this->info("Ditemukan " . $users->count() . " karyawan.");
+//     $this->info("Ditemukan " . $users->count() . " karyawan.");
 
-    $successCount = 0;
-    $skipCount = 0;
-    $errorCount = 0;
+//     $successCount = 0;
+//     $skipCount = 0;
+//     $errorCount = 0;
 
-    foreach ($users as $user) {
-        try {
-            // Coba ambil salary_setting dari user
-            $salarySetting = null;
+//     foreach ($users as $user) {
+//         try {
+//             // Coba ambil salary_setting dari user
+//             $salarySetting = null;
             
-            if ($user->salary_setting_id) {
-                $salarySetting = SalarySetting::find($user->salary_setting_id);
-            }
+//             if ($user->salary_setting_id) {
+//                 $salarySetting = SalarySetting::find($user->salary_setting_id);
+//             }
 
-            // Jika tidak ditemukan, ambil salary_setting pertama sebagai default
-            if (!$salarySetting) {
-                $salarySetting = SalarySetting::first();
+//             // Jika tidak ditemukan, ambil salary_setting pertama sebagai default
+//             if (!$salarySetting) {
+//                 $salarySetting = SalarySetting::first();
 
-                if (!$salarySetting) {
-                    $this->warn("User {$user->name} tidak memiliki Salary Setting dan tidak ada Salary Setting default.");
-                    $errorCount++;
-                    continue;
-                }
+//                 if (!$salarySetting) {
+//                     $this->warn("User {$user->name} tidak memiliki Salary Setting dan tidak ada Salary Setting default.");
+//                     $errorCount++;
+//                     continue;
+//                 }
 
-                $this->info("User {$user->name} tidak memiliki Salary Setting. Menggunakan Salary Setting default.");
-            }
+//                 $this->info("User {$user->name} tidak memiliki Salary Setting. Menggunakan Salary Setting default.");
+//             }
 
-            // Tentukan periode gaji dan tanggal pembayaran berikutnya
-            $now = Carbon::now();
-            $payPeriodStart = null;
-            $payPeriodEnd = null;
-            $nextPayDate = null;
+//             // Tentukan periode gaji dan tanggal pembayaran berikutnya
+//             $now = Carbon::now();
+//             $payPeriodStart = null;
+//             $payPeriodEnd = null;
+//             $nextPayDate = null;
 
-            if ($salarySetting->periode === 'daily') {
-                $payPeriodStart = $now->copy()->startOfDay();
-                $payPeriodEnd = $now->copy()->endOfDay();
-                $nextPayDate = $now->copy()->startOfDay();
-            } elseif ($salarySetting->periode === 'weekly') {
-                $payPeriodStart = $now->copy()->startOfWeek();
-                $payPeriodEnd = $now->copy()->endOfWeek();
-                $nextPayDate = $now->copy()->startOfWeek();
-            } elseif ($salarySetting->periode === 'monthly') {
-                $payPeriodStart = $now->copy()->startOfMonth();
-                $payPeriodEnd = $now->copy()->endOfMonth();
-                // Untuk periode bulanan, paydate adalah tanggal 1 bulan depan
-                $nextPayDate = $now->copy()->addMonth()->startOfMonth();
-            }
+//             if ($salarySetting->periode === 'daily') {
+//                 $payPeriodStart = $now->copy()->startOfDay();
+//                 $payPeriodEnd = $now->copy()->endOfDay();
+//                 $nextPayDate = $now->copy()->startOfDay();
+//             } elseif ($salarySetting->periode === 'weekly') {
+//                 $payPeriodStart = $now->copy()->startOfWeek();
+//                 $payPeriodEnd = $now->copy()->endOfWeek();
+//                 $nextPayDate = $now->copy()->startOfWeek();
+//             } elseif ($salarySetting->periode === 'monthly') {
+//                 $payPeriodStart = $now->copy()->startOfMonth();
+//                 $payPeriodEnd = $now->copy()->endOfMonth();
+//                 // Untuk periode bulanan, paydate adalah tanggal 1 bulan depan
+//                 $nextPayDate = $now->copy()->addMonth()->startOfMonth();
+//             }
 
-            // Cek apakah sudah ada gaji untuk periode ini berdasarkan pay_date saja
-            // Perubahan: Tidak menggunakan period_start dan period_end karena tidak ada di tabel
-            $existingSalary = Salary::where('user_id', $user->id)
-                ->where('pay_date', $nextPayDate)
-                ->first();
+//             // Cek apakah sudah ada gaji untuk periode ini berdasarkan pay_date saja
+//             // Perubahan: Tidak menggunakan period_start dan period_end karena tidak ada di tabel
+//             $existingSalary = Salary::where('user_id', $user->id)
+//                 ->where('pay_date', $nextPayDate)
+//                 ->first();
 
-            if ($existingSalary) {
-                $this->info("Salary untuk {$user->name} sudah ada untuk periode saat ini ({$salarySetting->periode}). ID: {$existingSalary->id}");
-                $skipCount++;
-                continue;
-            }
+//             if ($existingSalary) {
+//                 $this->info("Salary untuk {$user->name} sudah ada untuk periode saat ini ({$salarySetting->periode}). ID: {$existingSalary->id}");
+//                 $skipCount++;
+//                 continue;
+//             }
 
-            // Buat record gaji baru
-            DB::transaction(function () use ($user, $salarySetting, $nextPayDate, $payPeriodStart, $payPeriodEnd) {
-                // Perubahan: Menghapus period_start dan period_end dari data yang disimpan
-                $salary = Salary::create([
-                    'user_id' => $user->id,
-                    'salary_setting_id' => $salarySetting->id,
-                    'total_salary' => $salarySetting->salary,
-                    'total_deduction' => 0,
-                    'pay_date' => $nextPayDate,
-                    'status' => 'pending',
-                    'note' => "Auto-generated untuk periode {$salarySetting->periode} dari " . 
-                            $payPeriodStart->format('Y-m-d') . " hingga " . 
-                            $payPeriodEnd->format('Y-m-d')
-                ]);
-            });
+//             // Buat record gaji baru
+//             DB::transaction(function () use ($user, $salarySetting, $nextPayDate, $payPeriodStart, $payPeriodEnd) {
+//                 // Perubahan: Menghapus period_start dan period_end dari data yang disimpan
+//                 $salary = Salary::create([
+//                     'user_id' => $user->id,
+//                     'salary_setting_id' => $salarySetting->id,
+//                     'total_salary' => $salarySetting->salary,
+//                     'total_deduction' => 0,
+//                     'pay_date' => $nextPayDate,
+//                     'status' => 'pending',
+//                     'note' => "Auto-generated untuk periode {$salarySetting->periode} dari " . 
+//                             $payPeriodStart->format('Y-m-d') . " hingga " . 
+//                             $payPeriodEnd->format('Y-m-d')
+//                 ]);
+//             });
 
-            $this->info("Salary generated for {$user->name} for period {$payPeriodStart->format('Y-m-d')} to {$payPeriodEnd->format('Y-m-d')}.");
-            $successCount++;
-        } catch (\Exception $e) {
-            $this->error("Error generating salary for {$user->name}: " . $e->getMessage());
-            $errorCount++;
-        }
-    }
+//             $this->info("Salary generated for {$user->name} for period {$payPeriodStart->format('Y-m-d')} to {$payPeriodEnd->format('Y-m-d')}.");
+//             $successCount++;
+//         } catch (\Exception $e) {
+//             $this->error("Error generating salary for {$user->name}: " . $e->getMessage());
+//             $errorCount++;
+//         }
+//     }
 
-    $this->info("Proses generate gaji selesai.");
-    $this->info("Berhasil: {$successCount}, Dilewati: {$skipCount}, Error: {$errorCount}");
-    return 0;
-})->purpose('Generate salary data automatically based on period');
+//     $this->info("Proses generate gaji selesai.");
+//     $this->info("Berhasil: {$successCount}, Dilewati: {$skipCount}, Error: {$errorCount}");
+//     return 0;
+// })->purpose('Generate salary data automatically based on period');
 
 // Perintah untuk mengisi absensi otomatis
 Artisan::command('attendance:check', function () {
