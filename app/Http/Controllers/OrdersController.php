@@ -90,7 +90,7 @@ class OrdersController extends Controller
 
     // Kirim WA lewat Fonnte
     $phone = $order->phone;
-    $message = "Pesanan Anda sedang diproses oleh teknisi kami.";
+    $message = "Pesanan Anda sedang diproses oleh tim penjahit kami di Rumah Jahit Mawar.";
 
     try {
         $response = Http::withHeaders([

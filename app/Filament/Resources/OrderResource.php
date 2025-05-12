@@ -207,7 +207,7 @@ class OrderResource extends Resource
                                 'Authorization' => 'R5uHqhjeppTQbDefuzxY', // Ganti token sesuai
                             ])->post('https://api.fonnte.com/send', [
                                 'target' => $record->phone,
-                                'message' => "Pesanan Anda telah selesai. Terima kasih!",
+                                'message' => "Pesanan Anda di Rumah Jahit Mawar telah selesai dan sudah bisa diambil. Terima kasih atas kepercayaan Anda!",
                                 'countryCode' => '62',
                             ]);
                     
