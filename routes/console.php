@@ -167,6 +167,7 @@ Artisan::command('salary:calculate-deductions', function () {
     $this->info("Menghitung pengurangan gaji untuk periode: {$currentMonth}");
     
     // Ambil semua data attendances dengan filter bulan ini dan belum ada potongan
+    // PERBAIKAN: Tambahkan pengecekan hari kerja
     $attendances = Attendance::whereIn('status', ['telat', 'tidak hadir'])
         ->whereRaw("DATE_FORMAT(date, '%Y-%m') = ?", [$currentMonth])
         ->whereNotExists(function ($query) {
@@ -182,6 +183,43 @@ Artisan::command('salary:calculate-deductions', function () {
     }
 
     $this->info("Ditemukan " . $attendances->count() . " data absensi yang perlu dihitung.");
+    
+    // Filter attendances untuk mengecualikan hari Minggu dan hari libur lainnya
+    $filteredAttendances = collect();
+    
+    foreach ($attendances as $attendance) {
+        $attendanceDate = Carbon::parse($attendance->date);
+        $dayOfWeek = $attendanceDate->dayOfWeek; // 0 (Sunday) - 6 (Saturday)
+        
+        // Cek apakah hari kerja (bukan hari Minggu)
+        $isWorkDay = $dayOfWeek > 0 && $dayOfWeek < 7;
+        
+        // Tambahan: cek jika hari libur dari tabel khusus (jika ada)
+        // $isHoliday = Holiday::where('date', $attendance->date)->exists();
+        // if ($isHoliday) {
+        //     $isWorkDay = false;
+        // }
+        
+        if ($isWorkDay) {
+            $filteredAttendances->push($attendance);
+        } else {
+            $this->info("Melewati absensi ID {$attendance->id} untuk tanggal {$attendance->date} karena hari libur (hari {$dayOfWeek})");
+            
+            // Opsional: Hapus record attendance yang salah untuk hari libur
+            // $attendance->delete();
+            // $this->info("Menghapus record absensi yang salah untuk hari libur");
+        }
+    }
+    
+    // Update variabel attendances dengan hasil filter
+    $attendances = $filteredAttendances;
+    
+    $this->info("Setelah filter hari kerja: " . $attendances->count() . " data absensi yang perlu dihitung.");
+    
+    if ($attendances->isEmpty()) {
+        $this->info("Tidak ada data absensi pada hari kerja yang perlu dihitung potongannya.");
+        return 0;
+    }
 
     // Group attendances by user_id
     $groupedAttendances = $attendances->groupBy('user_id');
@@ -354,7 +392,6 @@ Artisan::command('salary:calculate-deductions', function () {
         return 1;
     }
 })->purpose('Hitung pengurangan gaji berdasarkan data absensi, perbarui data gaji, dan simpan riwayat potongan');
-
 // // Perintah untuk generate gaji karyawan
 // Artisan::command('salary:generate', function () {
 //     $this->info("Memulai proses generate gaji...");
