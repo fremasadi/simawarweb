@@ -161,13 +161,23 @@ Artisan::command('send:firebase-notification', function () {
 });
 
 // Perintah untuk menghitung pengurangan gaji
+// Perintah untuk menghitung pengurangan gaji
 Artisan::command('salary:calculate-deductions', function () {
     // Dapatkan bulan dan tahun saat ini untuk filter
     $currentMonth = Carbon::now()->format('Y-m');
     $this->info("Menghitung pengurangan gaji untuk periode: {$currentMonth}");
     
+    // Ambil pengaturan toko
+    $storeSetting = StoreSetting::first();
+
+    if (!$storeSetting) {
+        $this->warn("Tidak ada pengaturan toko yang ditemukan.");
+        return 0;
+    }
+    
+    $this->info("Jam operasional toko: {$storeSetting->open_time} - {$storeSetting->close_time}");
+    
     // Ambil semua data attendances dengan filter bulan ini dan belum ada potongan
-    // PERBAIKAN: Tambahkan pengecekan hari kerja
     $attendances = Attendance::whereIn('status', ['telat', 'tidak hadir'])
         ->whereRaw("DATE_FORMAT(date, '%Y-%m') = ?", [$currentMonth])
         ->whereNotExists(function ($query) {
@@ -200,24 +210,33 @@ Artisan::command('salary:calculate-deductions', function () {
         //     $isWorkDay = false;
         // }
         
-        if ($isWorkDay) {
+        // VALIDASI BARU: Cek apakah toko buka berdasarkan store_settings
+        $isStoreOpen = $storeSetting->is_open;
+        
+        // Kombinasikan validasi: hari kerja DAN toko buka
+        if ($isWorkDay && $isStoreOpen) {
             $filteredAttendances->push($attendance);
         } else {
-            $this->info("Melewati absensi ID {$attendance->id} untuk tanggal {$attendance->date} karena hari libur (hari {$dayOfWeek})");
+            $reasonText = [];
+            if (!$isWorkDay) $reasonText[] = "hari libur (hari {$dayOfWeek})";
+            if (!$isStoreOpen) $reasonText[] = "toko tutup (is_open = 0)";
             
-            // Opsional: Hapus record attendance yang salah untuk hari libur
+            $reason = implode(" dan ", $reasonText);
+            $this->info("Melewati absensi ID {$attendance->id} untuk tanggal {$attendance->date} karena {$reason}");
+            
+            // Opsional: Hapus record attendance yang salah untuk hari libur/toko tutup
             // $attendance->delete();
-            // $this->info("Menghapus record absensi yang salah untuk hari libur");
+            // $this->info("Menghapus record absensi yang salah");
         }
     }
     
     // Update variabel attendances dengan hasil filter
     $attendances = $filteredAttendances;
     
-    $this->info("Setelah filter hari kerja: " . $attendances->count() . " data absensi yang perlu dihitung.");
+    $this->info("Setelah filter hari kerja dan toko buka: " . $attendances->count() . " data absensi yang perlu dihitung.");
     
     if ($attendances->isEmpty()) {
-        $this->info("Tidak ada data absensi pada hari kerja yang perlu dihitung potongannya.");
+        $this->info("Tidak ada data absensi pada hari kerja dengan toko buka yang perlu dihitung potongannya.");
         return 0;
     }
 
@@ -229,8 +248,11 @@ Artisan::command('salary:calculate-deductions', function () {
 
     try {
         foreach ($groupedAttendances as $userId => $userAttendances) {
-            // === FIX 1: Perbaikan logika pencarian salary untuk bulan ini ===
-            // Logika: Cari gaji untuk periode bulan berjalan (yang biasanya dibayarkan di awal bulan berikutnya)
+            // Ambil informasi user
+            $user = User::find($userId);
+            $userName = $user ? $user->name : "User #{$userId}";
+            
+            // Cari gaji untuk periode bulan berjalan (yang biasanya dibayarkan di awal bulan berikutnya)
             $salary = Salary::where('user_id', $userId)
                 ->where(function($query) use ($currentMonth) {
                     // Format untuk mencari pay_date di awal bulan berikutnya
@@ -253,11 +275,11 @@ Artisan::command('salary:calculate-deductions', function () {
                     // ATAU cari salary dengan pay_date di bulan berjalan (kasus khusus)
                     $query->orWhereBetween('pay_date', [$currentMonthStart, $currentMonthEnd]);
                 })
-                ->latest('created_at') // === FIX 2: Ambil yang terbaru jika ada lebih dari satu ===
+                ->latest('created_at') // Ambil yang terbaru jika ada lebih dari satu
                 ->first();
 
             // Debugging: Tampilkan informasi pencarian salary
-            $this->info("Mencari gaji untuk user ID {$userId} periode {$currentMonth}");
+            $this->info("Mencari gaji untuk {$userName} (ID: {$userId}) periode {$currentMonth}");
             $nextMonthFirstDay = Carbon::createFromFormat('Y-m', $currentMonth)
                                 ->addMonth()
                                 ->startOfMonth()
@@ -265,11 +287,17 @@ Artisan::command('salary:calculate-deductions', function () {
             $this->info("Atau dengan pay_date: {$nextMonthFirstDay}");
             
             if (!$salary) {
-                $this->warn("Tidak ada data gaji untuk user_id {$userId} pada periode {$currentMonth}. Lewati perhitungan.");
+                $this->warn("Tidak ada data gaji untuk {$userName} (ID: {$userId}) pada periode {$currentMonth}. Lewati perhitungan.");
                 continue;
             }
             
             $this->info("Ditemukan data gaji dengan ID: {$salary->id}, pay_date: {$salary->pay_date}");
+
+            // VALIDASI BARU: Cek apakah salary sudah berstatus 'paid'
+            if ($salary->status === 'paid') {
+                $this->warn("Gaji untuk {$userName} (ID: {$userId}) periode {$currentMonth} sudah dibayarkan. Lewati perhitungan.");
+                continue;
+            }
 
             // Ambil pengaturan gaji berdasarkan salary_setting_id
             $salarySetting = SalarySetting::find($salary->salary_setting_id);
@@ -285,26 +313,88 @@ Artisan::command('salary:calculate-deductions', function () {
 
             // Array untuk menyimpan ID attendance yang diproses
             $processedAttendanceIds = [];
+            
+            // Buat array untuk mencatat riwayat potongan detail untuk log
+            $deductionDetails = [];
 
             foreach ($userAttendances as $attendance) {
                 $deductionAmount = 0;
                 $deductionType = $attendance->status;
                 $lateMinutes = null;
 
+                // VALIDASI BARU: Cek jam check-in terhadap jam buka toko
+                $validAttendance = true;
+                $validationNote = "";
+                
+                if ($attendance->status === 'telat' && $attendance->check_in) {
+                    $checkInTime = Carbon::parse($attendance->check_in)->format('H:i:s');
+                    $openTime = $storeSetting->open_time;
+                    
+                    // Toleransi keterlambatan (bisa disesuaikan)
+                    $gracePeriodMinutes = 15; // 15 menit toleransi
+                    $openTimePlusGrace = Carbon::parse($openTime)->addMinutes($gracePeriodMinutes)->format('H:i:s');
+                    
+                    // Jika check-in sebelum jam buka + toleransi, maka tidak dianggap telat
+                    if ($checkInTime <= $openTimePlusGrace) {
+                        $validAttendance = false;
+                        $validationNote = "check-in pada {$checkInTime} masih dalam batas toleransi (jam buka: {$openTime} + {$gracePeriodMinutes} menit)";
+                    }
+                }
+                
+                if (!$validAttendance) {
+                    $this->info("Melewati absensi ID {$attendance->id} untuk {$userName} tanggal {$attendance->date} karena {$validationNote}");
+                    continue;
+                }
+
                 // Hitung pengurangan berdasarkan keterlambatan
                 if ($attendance->status === 'telat' && $attendance->late_minutes > 0) {
+                    // VALIDASI BARU: Minimal menit untuk dikenakan potongan
+                    $minimumLateMinutes = 15; // Contoh: minimal telat 15 menit baru kena potongan
+                    
+                    if ($attendance->late_minutes < $minimumLateMinutes) {
+                        $this->info("Melewati absensi ID {$attendance->id} untuk {$userName} tanggal {$attendance->date} karena telat hanya {$attendance->late_minutes} menit (minimal {$minimumLateMinutes} menit)");
+                        continue;
+                    }
+                    
                     $lateMinutes = $attendance->late_minutes;
-                    $deductionAmount = $lateMinutes * $salarySetting->deduction_per_minute;
+                    
+                    // VALIDASI BARU: Maksimal potongan per hari untuk keterlambatan
+                    $maxDailyDeduction = 100000; // Contoh: maksimal potongan 100.000 per hari
+                    
+                    $calculatedDeduction = $lateMinutes * $salarySetting->deduction_per_minute;
+                    $deductionAmount = min($calculatedDeduction, $maxDailyDeduction);
+                    
+                    if ($calculatedDeduction > $maxDailyDeduction) {
+                        $this->info("Potongan untuk {$userName} tanggal {$attendance->date} dibatasi dari {$calculatedDeduction} menjadi {$maxDailyDeduction} (batas maksimal per hari)");
+                    }
+                    
                     $additionalDeduction += $deductionAmount;
+                    
+                    // Catat detail
+                    $deductionDetails[] = [
+                        'tanggal' => $attendance->date,
+                        'tipe' => 'telat',
+                        'menit' => $lateMinutes,
+                        'potongan' => $deductionAmount,
+                        'catatan' => "Keterlambatan {$lateMinutes} menit"
+                    ];
                 }
 
                 // Hitung pengurangan jika tidak hadir
                 if ($attendance->status === 'tidak hadir') {
                     $deductionAmount = $salarySetting->reduction_if_absent;
                     $additionalDeduction += $deductionAmount;
+                    
+                    // Catat detail
+                    $deductionDetails[] = [
+                        'tanggal' => $attendance->date,
+                        'tipe' => 'tidak hadir',
+                        'potongan' => $deductionAmount,
+                        'catatan' => "Tidak hadir"
+                    ];
                 }
 
-                // === FIX 3: Periksa apakah riwayat potongan sudah ada sebelum membuat yang baru ===
+                // Periksa apakah riwayat potongan sudah ada sebelum membuat yang baru
                 $existingHistory = SalaryDeductionHistories::where('attendance_id', $attendance->id)->first();
                 if ($existingHistory) {
                     $this->info("Riwayat potongan untuk attendance ID {$attendance->id} sudah ada. Lewati.");
@@ -312,56 +402,81 @@ Artisan::command('salary:calculate-deductions', function () {
                 }
 
                 // Simpan riwayat potongan untuk setiap attendance
-                $history = SalaryDeductionHistories::create([
-                    'user_id' => $userId,
-                    'salary_id' => $salary->id,
-                    'attendance_id' => $attendance->id,
-                    'deduction_type' => $deductionType,
-                    'late_minutes' => $lateMinutes,
-                    'deduction_amount' => $deductionAmount,
-                    'deduction_per_minute' => $attendance->status === 'telat' ? $salarySetting->deduction_per_minute : null,
-                    'reduction_if_absent' => $attendance->status === 'tidak hadir' ? $salarySetting->reduction_if_absent : null,
-                    'deduction_date' => Carbon::now()->toDateString(),
-                    'note' => "Potongan karena " . ($attendance->status === 'telat' ? "keterlambatan {$lateMinutes} menit" : "tidak hadir"),
-                ]);
+                try {
+                    $history = SalaryDeductionHistories::create([
+                        'user_id' => $userId,
+                        'salary_id' => $salary->id,
+                        'attendance_id' => $attendance->id,
+                        'deduction_type' => $deductionType,
+                        'late_minutes' => $lateMinutes,
+                        'deduction_amount' => $deductionAmount,
+                        'deduction_per_minute' => $attendance->status === 'telat' ? $salarySetting->deduction_per_minute : null,
+                        'reduction_if_absent' => $attendance->status === 'tidak hadir' ? $salarySetting->reduction_if_absent : null,
+                        'deduction_date' => Carbon::now()->toDateString(),
+                        'note' => "Potongan karena " . ($attendance->status === 'telat' ? "keterlambatan {$lateMinutes} menit" : "tidak hadir"),
+                    ]);
 
-                // Jika history berhasil dibuat, tambahkan ID attendance ke array
-                if ($history) {
-                    $processedAttendanceIds[] = $attendance->id;
+                    // Jika history berhasil dibuat, tambahkan ID attendance ke array
+                    if ($history) {
+                        $processedAttendanceIds[] = $attendance->id;
+                        $this->info("Berhasil menambahkan potongan untuk {$userName}, " .
+                                   "tanggal {$attendance->date}, status {$attendance->status}, " .
+                                   "jumlah potongan {$deductionAmount}");
+                    }
+                } catch (\Exception $historyError) {
+                    $this->error("Error saat membuat riwayat potongan: " . $historyError->getMessage());
+                    \Log::error("Error saat membuat riwayat potongan: " . $historyError->getMessage());
                 }
-
-                $this->info("Berhasil menambahkan potongan untuk attendance ID {$attendance->id}, user ID {$userId}, " .
-                           "tanggal {$attendance->date}, status {$attendance->status}, " .
-                           "jumlah potongan {$deductionAmount}");
             }
 
-            // === FIX 4: Hanya update salary jika ada attendance yang diproses ===
+            // Hanya update salary jika ada attendance yang diproses
             if (count($processedAttendanceIds) > 0) {
-                // Update data salary dengan total pengurangan baru
+                // VALIDASI BARU: Cek batas maksimal pengurangan (% dari total gaji)
+                $maxDeductionPercentage = 50; // Maksimal 50% dari total gaji
+                $baseSalary = $salarySetting->salary;
+                $maxTotalDeduction = ($baseSalary * $maxDeductionPercentage) / 100;
+                
+                // Total pengurangan baru
                 $totalDeduction = $existingDeduction + $additionalDeduction;
-                $newTotalSalary = $salarySetting->salary - $totalDeduction;
+                
+                // Terapkan batasan maksimal
+                if ($totalDeduction > $maxTotalDeduction) {
+                    $this->warn("Total potongan ({$totalDeduction}) untuk {$userName} melebihi {$maxDeductionPercentage}% dari gaji ({$maxTotalDeduction}). Potongan dibatasi.");
+                    $totalDeduction = $maxTotalDeduction;
+                }
+                
+                $newTotalSalary = $baseSalary - $totalDeduction;
                 
                 // Pastikan total gaji tidak minus
                 if ($newTotalSalary < 0) {
                     $newTotalSalary = 0;
-                    $this->warn("Total gaji untuk user ID {$userId} kurang dari 0. Disetel ke 0.");
+                    $this->warn("Total gaji untuk {$userName} kurang dari 0. Disetel ke 0.");
                 }
 
-                // === FIX 5: Perbaikan update salary ===
+                // Buat catatan detail potongan untuk disimpan di field note
+                $detailNotes = "Detail potongan:";
+                foreach ($deductionDetails as $detail) {
+                    $detailNotes .= "\n- {$detail['tanggal']} ({$detail['tipe']}): Rp" . number_format($detail['potongan'], 0, ',', '.') . " - {$detail['catatan']}";
+                }
+                
                 try {
                     $salary->total_deduction = $totalDeduction;
                     $salary->total_salary = $newTotalSalary;
                     $salary->status = 'pending';
-                    $salary->note = ($salary->note ?: '') . " | Potongan diperbarui pada " . Carbon::now()->format('Y-m-d H:i:s');
+                    
+                    // Tambahkan detail potongan ke catatan
+                    $existingNote = $salary->note ?: '';
+                    $updateTimeNote = "Potongan diperbarui pada " . Carbon::now()->format('Y-m-d H:i:s');
+                    $salary->note = $existingNote . "\n\n" . $updateTimeNote . "\n" . $detailNotes;
+                    
                     $updateResult = $salary->save();
 
                     // Debugging: Tampilkan status update
                     if ($updateResult) {
-                        $this->info("Berhasil update data gaji dengan ID {$salary->id}");
+                        $this->info("Berhasil update data gaji dengan ID {$salary->id} untuk {$userName}");
                     } else {
-                        $this->warn("Gagal update data gaji dengan ID {$salary->id}");
-                        // === FIX 6: Log error jika gagal update ===
-                        \Log::error("Gagal update data gaji: ID {$salary->id}, User ID {$userId}, Total Deduction {$totalDeduction}");
+                        $this->warn("Gagal update data gaji dengan ID {$salary->id} untuk {$userName}");
+                        \Log::error("Gagal update data gaji: ID {$salary->id}, User {$userName}, Total Deduction {$totalDeduction}");
                     }
                 } catch (\Exception $updateError) {
                     $this->error("Error saat update salary: " . $updateError->getMessage());
@@ -369,14 +484,14 @@ Artisan::command('salary:calculate-deductions', function () {
                 }
 
                 // Debugging: Tampilkan nilai yang dihitung
-                $this->info("User ID: {$userId}");
-                $this->info("Potongan sebelumnya: {$existingDeduction}");
-                $this->info("Tambahan potongan: {$additionalDeduction}");
-                $this->info("Total potongan baru: {$totalDeduction}");
-                $this->info("Updated Total Salary: {$newTotalSalary}");
+                $this->info("User: {$userName} (ID: {$userId})");
+                $this->info("Potongan sebelumnya: Rp" . number_format($existingDeduction, 0, ',', '.'));
+                $this->info("Tambahan potongan: Rp" . number_format($additionalDeduction, 0, ',', '.'));
+                $this->info("Total potongan baru: Rp" . number_format($totalDeduction, 0, ',', '.'));
+                $this->info("Updated Total Salary: Rp" . number_format($newTotalSalary, 0, ',', '.'));
                 $this->info("Riwayat potongan berhasil disimpan");
             } else {
-                $this->info("Tidak ada data attendance baru untuk diproses untuk user ID {$userId}");
+                $this->info("Tidak ada data attendance baru yang valid untuk diproses untuk {$userName} (ID: {$userId})");
             }
         }
 
