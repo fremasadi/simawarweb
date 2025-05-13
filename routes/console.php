@@ -162,6 +162,7 @@ Artisan::command('send:firebase-notification', function () {
 
 // Perintah untuk menghitung pengurangan gaji
 // Perintah untuk menghitung pengurangan gaji
+// Perintah untuk menghitung pengurangan gaji
 Artisan::command('salary:calculate-deductions', function () {
     // Dapatkan bulan dan tahun saat ini untuk filter
     $currentMonth = Carbon::now()->format('Y-m');
@@ -176,6 +177,44 @@ Artisan::command('salary:calculate-deductions', function () {
     }
     
     $this->info("Jam operasional toko: {$storeSetting->open_time} - {$storeSetting->close_time}");
+    
+    // TAMBAHAN: Pemeriksaan waktu saat ini terhadap waktu tutup toko
+    $now = Carbon::now();
+    $currentTime = $now->format('H:i:s');
+    $today = Carbon::today();
+    $yesterday = Carbon::yesterday();
+    
+    // Tentukan apakah kita sudah melewati waktu tutup toko
+    $closeTime = Carbon::parse($storeSetting->close_time);
+    $isAfterCloseTime = false;
+    
+    // Jika waktu tutup lebih kecil dari waktu buka, artinya tutup di hari berikutnya
+    if ($closeTime->format('H:i:s') < $storeSetting->open_time) {
+        // Jika sekarang antara 00:00 sampai waktu tutup, kita masih dalam operasional hari kemarin
+        if ($now->format('H:i:s') <= $closeTime->format('H:i:s')) {
+            $this->info("Saat ini ({$currentTime}) masih dalam jam operasional kemarin (tutup: {$closeTime->format('H:i:s')})");
+            $isAfterCloseTime = false;
+        } else {
+            $this->info("Saat ini ({$currentTime}) sudah melewati jam tutup toko ({$closeTime->format('H:i:s')})");
+            $isAfterCloseTime = true;
+        }
+    } else {
+        // Jika waktu tutup di hari yang sama
+        // Jika sekarang lebih dari waktu tutup, berarti sudah bisa cek
+        if ($now->format('H:i:s') >= $closeTime->format('H:i:s')) {
+            $this->info("Saat ini ({$currentTime}) sudah melewati jam tutup toko ({$closeTime->format('H:i:s')})");
+            $isAfterCloseTime = true;
+        } else {
+            $this->info("Saat ini ({$currentTime}) belum melewati jam tutup toko ({$closeTime->format('H:i:s')})");
+            $isAfterCloseTime = false;
+        }
+    }
+    
+    // Hanya lanjutkan proses jika sudah melewati waktu tutup toko
+    if (!$isAfterCloseTime) {
+        $this->warn("Belum melewati waktu tutup toko. Perhitungan potongan gaji ditunda.");
+        return 0;
+    }
     
     // Ambil semua data attendances dengan filter bulan ini dan belum ada potongan
     $attendances = Attendance::whereIn('status', ['telat', 'tidak hadir'])
@@ -210,33 +249,43 @@ Artisan::command('salary:calculate-deductions', function () {
         //     $isWorkDay = false;
         // }
         
-        // VALIDASI BARU: Cek apakah toko buka berdasarkan store_settings
+        // VALIDASI: Cek apakah toko buka berdasarkan store_settings
         $isStoreOpen = $storeSetting->is_open;
         
-        // Kombinasikan validasi: hari kerja DAN toko buka
-        if ($isWorkDay && $isStoreOpen) {
+        // TAMBAHAN: Cek apakah tanggal absensi adalah hari ini atau kemarin
+        $isToday = $attendance->date === $today->format('Y-m-d');
+        $isYesterday = $attendance->date === $yesterday->format('Y-m-d');
+        
+        // VALIDASI: Hanya proses absensi hari kemarin atau hari ini jika sudah setelah jam tutup
+        $shouldProcess = ($isYesterday) || ($isToday && $isAfterCloseTime);
+        
+        // Kombinasikan validasi: hari kerja DAN toko buka DAN sesuai dengan periode waktu yang valid
+        if ($isWorkDay && $isStoreOpen && $shouldProcess) {
             $filteredAttendances->push($attendance);
         } else {
             $reasonText = [];
             if (!$isWorkDay) $reasonText[] = "hari libur (hari {$dayOfWeek})";
             if (!$isStoreOpen) $reasonText[] = "toko tutup (is_open = 0)";
+            if (!$shouldProcess) {
+                if ($isToday) {
+                    $reasonText[] = "belum melewati jam tutup toko untuk hari ini";
+                } else if (!$isYesterday && !$isToday) {
+                    $reasonText[] = "bukan hari ini atau kemarin (tanggal: {$attendance->date})";
+                }
+            }
             
             $reason = implode(" dan ", $reasonText);
             $this->info("Melewati absensi ID {$attendance->id} untuk tanggal {$attendance->date} karena {$reason}");
-            
-            // Opsional: Hapus record attendance yang salah untuk hari libur/toko tutup
-            // $attendance->delete();
-            // $this->info("Menghapus record absensi yang salah");
         }
     }
     
     // Update variabel attendances dengan hasil filter
     $attendances = $filteredAttendances;
     
-    $this->info("Setelah filter hari kerja dan toko buka: " . $attendances->count() . " data absensi yang perlu dihitung.");
+    $this->info("Setelah filter hari kerja, toko buka, dan validasi waktu: " . $attendances->count() . " data absensi yang perlu dihitung.");
     
     if ($attendances->isEmpty()) {
-        $this->info("Tidak ada data absensi pada hari kerja dengan toko buka yang perlu dihitung potongannya.");
+        $this->info("Tidak ada data absensi yang memenuhi kriteria untuk dihitung potongannya.");
         return 0;
     }
 
@@ -293,7 +342,7 @@ Artisan::command('salary:calculate-deductions', function () {
             
             $this->info("Ditemukan data gaji dengan ID: {$salary->id}, pay_date: {$salary->pay_date}");
 
-            // VALIDASI BARU: Cek apakah salary sudah berstatus 'paid'
+            // VALIDASI: Cek apakah salary sudah berstatus 'paid'
             if ($salary->status === 'paid') {
                 $this->warn("Gaji untuk {$userName} (ID: {$userId}) periode {$currentMonth} sudah dibayarkan. Lewati perhitungan.");
                 continue;
@@ -322,7 +371,7 @@ Artisan::command('salary:calculate-deductions', function () {
                 $deductionType = $attendance->status;
                 $lateMinutes = null;
 
-                // VALIDASI BARU: Cek jam check-in terhadap jam buka toko
+                // VALIDASI: Cek jam check-in terhadap jam buka toko
                 $validAttendance = true;
                 $validationNote = "";
                 
@@ -348,7 +397,7 @@ Artisan::command('salary:calculate-deductions', function () {
 
                 // Hitung pengurangan berdasarkan keterlambatan
                 if ($attendance->status === 'telat' && $attendance->late_minutes > 0) {
-                    // VALIDASI BARU: Minimal menit untuk dikenakan potongan
+                    // VALIDASI: Minimal menit untuk dikenakan potongan
                     $minimumLateMinutes = 15; // Contoh: minimal telat 15 menit baru kena potongan
                     
                     if ($attendance->late_minutes < $minimumLateMinutes) {
@@ -358,7 +407,7 @@ Artisan::command('salary:calculate-deductions', function () {
                     
                     $lateMinutes = $attendance->late_minutes;
                     
-                    // VALIDASI BARU: Maksimal potongan per hari untuk keterlambatan
+                    // VALIDASI: Maksimal potongan per hari untuk keterlambatan
                     $maxDailyDeduction = 100000; // Contoh: maksimal potongan 100.000 per hari
                     
                     $calculatedDeduction = $lateMinutes * $salarySetting->deduction_per_minute;
@@ -431,7 +480,7 @@ Artisan::command('salary:calculate-deductions', function () {
 
             // Hanya update salary jika ada attendance yang diproses
             if (count($processedAttendanceIds) > 0) {
-                // VALIDASI BARU: Cek batas maksimal pengurangan (% dari total gaji)
+                // VALIDASI: Cek batas maksimal pengurangan (% dari total gaji)
                 $maxDeductionPercentage = 50; // Maksimal 50% dari total gaji
                 $baseSalary = $salarySetting->salary;
                 $maxTotalDeduction = ($baseSalary * $maxDeductionPercentage) / 100;
