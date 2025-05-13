@@ -35,10 +35,11 @@ class SalaryHistoryController extends Controller
     ]);
 }
 
-    public function showDeductions($salary_id)
+public function showDeductions($salary_id)
 {
     $deductions = SalaryDeductionHistories::with(['attendance'])
         ->where('salary_id', $salary_id)
+        ->orderBy('created_at', 'desc') // Tambahkan ini untuk urutan descending
         ->get();
 
     if ($deductions->isEmpty()) {
@@ -53,4 +54,5 @@ class SalaryHistoryController extends Controller
         'data' => $deductions,
     ]);
 }
+
 }
