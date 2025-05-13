@@ -506,6 +506,17 @@ Artisan::command('attendance:check', function () {
         return 0;
     }
 
+    // PERUBAHAN: Menggunakan hari ini dan kemarin
+    $today = Carbon::today();
+    $yesterday = Carbon::yesterday();
+    $todayDate = $today->format('Y-m-d');
+    $yesterdayDate = $yesterday->format('Y-m-d');
+    
+    $this->info("Hari ini: {$todayDate}, Kemarin: {$yesterdayDate}");
+    
+    // Cek tanggal saat ini dan tanggal kemarin
+    $this->info("Memeriksa absensi untuk tanggal: {$todayDate}");
+    
     // Ambil semua user dengan role karyawan
     $users = User::where('role', 'karyawan')->get();
     
@@ -514,34 +525,63 @@ Artisan::command('attendance:check', function () {
         return 0;
     }
 
-    // Cek kemarin
-    $yesterday = Carbon::yesterday();
-    $yesterdayDate = $yesterday->format('Y-m-d');
+    // PERUBAHAN: Menggunakan Carbon::now() untuk mendapatkan waktu saat ini
+    $now = Carbon::now();
+    $currentTime = $now->format('H:i:s');
     
-    // Cek apakah toko buka kemarin (berdasarkan hari)
-    $dayOfWeek = $yesterday->dayOfWeek; // 0 (Sunday) - 6 (Saturday)
+    // Tentukan apakah kita sudah melewati waktu tutup toko
+    // Jika toko tutup di hari berikutnya (misalnya tutup jam 04:00 pagi)
+    $closeTime = Carbon::parse($storeSetting->close_time);
+    $isAfterCloseTime = false;
+    
+    // Jika waktu tutup lebih kecil dari waktu buka, artinya tutup di hari berikutnya
+    if ($closeTime->format('H:i:s') < $storeSetting->open_time) {
+        // Jika sekarang antara 00:00 sampai waktu tutup, berarti kita mengecek data kemarin
+        if ($now->format('H:i:s') <= $closeTime->format('H:i:s')) {
+            $isAfterCloseTime = true;
+            $dateToCheck = $yesterdayDate; // Periksa absensi kemarin
+            $this->info("Sekarang masih dalam jam operasional kemarin (tutup: {$closeTime->format('H:i:s')}), memeriksa absensi tanggal: {$dateToCheck}");
+        } else {
+            $dateToCheck = $todayDate; // Periksa absensi hari ini
+            $this->info("Memeriksa absensi hari ini: {$dateToCheck}");
+        }
+    } else {
+        // Jika waktu tutup di hari yang sama
+        $dateToCheck = $todayDate;
+        
+        // Jika sekarang lebih dari waktu tutup, berarti sudah bisa cek absensi hari ini
+        if ($now->format('H:i:s') >= $closeTime->format('H:i:s')) {
+            $isAfterCloseTime = true;
+        }
+    }
+    
+    // Cek apakah toko buka pada tanggal yang diperiksa (berdasarkan hari)
+    $dayOfWeek = Carbon::parse($dateToCheck)->dayOfWeek; // 0 (Sunday) - 6 (Saturday)
     
     // Asumsikan toko buka dari Senin-Sabtu (1-6) dan tutup hari Minggu (0)
     // Anda bisa menyesuaikan logika ini berdasarkan model data Anda
-    $isOpenYesterday = $dayOfWeek > 0 && $dayOfWeek < 7;
+    $isOpenDay = $dayOfWeek > 0 && $dayOfWeek < 7;
     
-    // Tambahan: cek jika kemarin adalah hari libur dari tabel khusus (jika ada)
-    // $isHoliday = Holiday::where('date', $yesterdayDate)->exists();
+    // Tambahan: cek jika hari yang diperiksa adalah hari libur dari tabel khusus (jika ada)
+    // $isHoliday = Holiday::where('date', $dateToCheck)->exists();
     // if ($isHoliday) {
-    //     $isOpenYesterday = false;
+    //     $isOpenDay = false;
     // }
 
-    $this->info("Tanggal: {$yesterdayDate}, Hari: {$dayOfWeek}, Status toko buka: " . ($isOpenYesterday ? "Ya" : "Tidak"));
+    $this->info("Tanggal: {$dateToCheck}, Hari: {$dayOfWeek}, Status toko buka: " . ($isOpenDay ? "Ya" : "Tidak"));
+    $this->info("Waktu saat ini: {$currentTime}, Waktu tutup: {$storeSetting->close_time}, Sudah lewat waktu tutup: " . ($isAfterCloseTime ? "Ya" : "Tidak"));
 
-    // Jika toko buka kemarin
-    if ($isOpenYesterday) {
+    // Hanya lakukan pengecekan absensi jika:
+    // 1. Toko buka pada tanggal yang diperiksa, DAN
+    // 2. Sudah melewati waktu tutup toko untuk hari tersebut
+    if ($isOpenDay && $isAfterCloseTime) {
         $processedCount = 0;
         $skippedCount = 0;
         
         foreach ($users as $user) {
-            // Cek apakah sudah ada absensi untuk tanggal kemarin
+            // Cek apakah sudah ada absensi untuk tanggal yang diperiksa
             $existingAttendance = Attendance::where('user_id', $user->id)
-                ->where('date', $yesterdayDate)
+                ->where('date', $dateToCheck)
                 ->first();
 
             // Jika belum ada absensi, buat absensi dengan status tidak hadir
@@ -549,7 +589,7 @@ Artisan::command('attendance:check', function () {
                 try {
                     Attendance::create([
                         'user_id' => $user->id,
-                        'date' => $yesterdayDate,
+                        'date' => $dateToCheck,
                         'status' => 'tidak hadir',
                         'check_in' => null,
                         'check_out' => null,
@@ -557,20 +597,24 @@ Artisan::command('attendance:check', function () {
                         'note' => "Auto-generated karena tidak melakukan check-in"
                     ]);
 
-                    $this->info("Menambahkan absensi 'tidak hadir' untuk {$user->name} pada tanggal {$yesterdayDate}");
+                    $this->info("Menambahkan absensi 'tidak hadir' untuk {$user->name} pada tanggal {$dateToCheck}");
                     $processedCount++;
                 } catch (\Exception $e) {
                     $this->error("Error saat membuat absensi untuk {$user->name}: " . $e->getMessage());
                 }
             } else {
-                $this->info("Absensi untuk {$user->name} pada tanggal {$yesterdayDate} sudah ada. Status: {$existingAttendance->status}");
+                $this->info("Absensi untuk {$user->name} pada tanggal {$dateToCheck} sudah ada. Status: {$existingAttendance->status}");
                 $skippedCount++;
             }
         }
         
         $this->info("Pengecekan absensi selesai. Ditambahkan: {$processedCount}, Dilewati: {$skippedCount}");
     } else {
-        $this->info("Kemarin toko tutup. Tidak perlu menambahkan absensi 'tidak hadir'.");
+        if (!$isOpenDay) {
+            $this->info("Toko tutup pada tanggal {$dateToCheck}. Tidak perlu menambahkan absensi 'tidak hadir'.");
+        } else {
+            $this->info("Belum melewati waktu tutup toko ({$storeSetting->close_time}). Pengecekan absensi ditunda.");
+        }
     }
     
     return 0;
