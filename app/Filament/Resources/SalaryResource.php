@@ -115,6 +115,7 @@ class SalaryResource extends Resource
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
+            ->defaultSort('created_at', 'desc')
             ->filters([
                 Tables\Filters\SelectFilter::make('bulan')
                     ->label('Filter Bulan')
