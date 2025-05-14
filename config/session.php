@@ -32,7 +32,7 @@ return [
     |
     */
 
-    'lifetime' => 120, // dalam menit, default 2 jam
+    'lifetime' => 525600, // dalam menit, default 2 jam
     'expire_on_close' => false,
 
 
