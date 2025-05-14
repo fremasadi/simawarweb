@@ -92,7 +92,7 @@ class OrderResource extends Resource
                 Forms\Components\TextInput::make('phone')
                     ->label('No.Telefon Pemesan')
                     ->tel()
-                    ->required()
+                    ->required('No. Telefon Pemesan wajib diisi.')
                     ->maxLength(255),
                 Forms\Components\TextInput::make('quantity')
                     ->label('Jumlah')
@@ -137,8 +137,8 @@ class OrderResource extends Resource
                         $fields[] = TextInput::make("size.{$safeKey}")
                             ->label($cleanFieldName)
                             ->numeric()
-                            ->required();
-                    }
+                            ->required('wajib diisi.');
+                        }
 
                     return [
                         Grid::make(3)
