@@ -16,7 +16,7 @@ class CreateOrder extends CreateRecord
         $record = $this->record;
 
         $phone = $record->phone;
-        $message = "erima kasih telah memesan di Rumah Jahit Mawar! Pesanan Anda akan segera kami proses.";
+        $message = "Terima kasih telah memesan di Rumah Jahit Mawar! Pesanan Anda akan segera kami proses.";
 
         try {
             $response = Http::withHeaders([
