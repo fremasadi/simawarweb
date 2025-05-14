@@ -172,19 +172,19 @@ class OrderResource extends Resource
                     ->label('Model Ukuran') // Ubah label kolom ke bahasa Indonesia
                     ->sortable(),
                 Tables\Columns\TextColumn::make('user.name') // Mengambil nama dari relasi user
-                    ->label('Ditugaskan Ke') 
+                    ->label('Ditugaskan Ke')
                     ->sortable()
-                    ->searchable(),                
-                Tables\Columns\TextColumn::make('created_at')
-                    ->label('Dibuat Pada') // Menambahkan label
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('updated_at')
-                    ->label('Diperbarui Pada') // Menambahkan label
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->searchable(),
+                // Tables\Columns\TextColumn::make('created_at')
+                //     ->label('Dibuat Pada') // Menambahkan label
+                //     ->dateTime()
+                //     ->sortable()
+                //     ->toggleable(isToggledHiddenByDefault: true),
+                // Tables\Columns\TextColumn::make('updated_at')
+                //     ->label('Diperbarui Pada') // Menambahkan label
+                //     ->dateTime()
+                //     ->sortable()
+                //     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->defaultSort('created_at', 'desc')
             ->filters([
@@ -192,7 +192,7 @@ class OrderResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
-    
+
                 // Tombol "Selesai" hanya muncul jika statusnya "dikerjakan"
                 Tables\Actions\Action::make('selesai')
                     ->label('Selesai')
@@ -201,7 +201,7 @@ class OrderResource extends Resource
                     ->visible(fn ($record) => $record->status === 'dikerjakan') // Hanya tampil jika status "dikerjakan"
                     ->action(function ($record) {
                         $record->update(['status' => 'selesai']);
-                    
+
                         // Kirim WA lewat Fonnte
                         try {
                             $response = Http::withHeaders([
@@ -211,7 +211,7 @@ class OrderResource extends Resource
                                 'message' => "Pesanan Anda di Rumah Jahit Mawar telah selesai dan sudah bisa diambil. Terima kasih atas kepercayaan Anda!",
                                 'countryCode' => '62',
                             ]);
-                    
+
                             if ($response->failed()) {
                                 logger()->error('Gagal kirim WA (selesai): ' . $response->body());
                             }
@@ -223,11 +223,11 @@ class OrderResource extends Resource
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    // Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ]);
     }
-    
+
 
     public static function getRelations(): array
     {
