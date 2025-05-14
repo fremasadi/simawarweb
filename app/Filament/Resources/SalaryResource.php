@@ -106,14 +106,14 @@ class SalaryResource extends Resource
                     ->label('waktu pembayaran')
                     ->date()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('created_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('updated_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                // Tables\Columns\TextColumn::make('created_at')
+                //     ->dateTime()
+                //     ->sortable()
+                //     ->toggleable(isToggledHiddenByDefault: true),
+                // Tables\Columns\TextColumn::make('updated_at')
+                //     ->dateTime()
+                //     ->sortable()
+                //     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->defaultSort('created_at', 'desc')
             ->filters([
@@ -129,7 +129,7 @@ class SalaryResource extends Resource
                             return $query->whereMonth('pay_date', $month);
                         });
                     }),
-            
+
                 Tables\Filters\SelectFilter::make('tahun')
                     ->label('Filter Tahun')
                     ->options(
@@ -154,7 +154,7 @@ class SalaryResource extends Resource
         ->default(null)
         ->placeholder('Semua Status'),
             ])
-            
+
             ->actions([
                 Tables\Actions\EditAction::make(),
             ])
