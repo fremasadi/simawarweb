@@ -41,7 +41,7 @@ class SalaryDeductionHistoriesResource extends Resource
     {
         return $form
             ->schema([
-               
+
             ]);
     }
 
@@ -73,7 +73,7 @@ class SalaryDeductionHistoriesResource extends Resource
                 ->numeric()
                 ->sortable(),
 
-            
+
             Tables\Columns\TextColumn::make('deduction_per_minute')
                 ->label('Potongan Per Menit')
                 ->numeric()
@@ -88,18 +88,18 @@ class SalaryDeductionHistoriesResource extends Resource
                 ->numeric()
                 ->sortable(),
 
-            
-            Tables\Columns\TextColumn::make('created_at')
-                ->label('Dibuat Pada')
-                ->dateTime()
-                ->sortable()
-                ->toggleable(isToggledHiddenByDefault: true),
 
-            Tables\Columns\TextColumn::make('updated_at')
-                ->label('Diperbarui Pada')
-                ->dateTime()
-                ->sortable()
-                ->toggleable(isToggledHiddenByDefault: true),
+            // Tables\Columns\TextColumn::make('created_at')
+            //     ->label('Dibuat Pada')
+            //     ->dateTime()
+            //     ->sortable()
+            //     ->toggleable(isToggledHiddenByDefault: true),
+
+            // Tables\Columns\TextColumn::make('updated_at')
+            //     ->label('Diperbarui Pada')
+            //     ->dateTime()
+            //     ->sortable()
+            //     ->toggleable(isToggledHiddenByDefault: true),
         ])
         ->defaultSort('created_at', 'desc')
         ->filters([
@@ -110,7 +110,7 @@ class SalaryDeductionHistoriesResource extends Resource
         ])
         ->bulkActions([
             Tables\Actions\BulkActionGroup::make([
-                Tables\Actions\DeleteBulkAction::make(),
+                // Tables\Actions\DeleteBulkAction::make(),
             ]),
         ]);
 }
