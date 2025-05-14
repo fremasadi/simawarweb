@@ -116,29 +116,30 @@ class OrderResource extends Resource
                 ->schema(function (Get $get) {
                     $sizemodelId = $get('sizemodel_id');
                     if (!$sizemodelId) {
-                        return []; // Jika sizemodel_id belum dipilih, kembalikan schema kosong
+                        return []; 
                     }
 
-                    // Ambil data size dari tabel size_models
                     $sizeModel = \App\Models\SizeModel::find($sizemodelId);
                     if (!$sizeModel) {
                         return [];
                     }
 
-                    // Periksa apakah size adalah string JSON atau sudah array
                     $sizeFields = is_string($sizeModel->size) ? json_decode($sizeModel->size, true) : $sizeModel->size;
 
-                    // Sanitize field names by trimming spaces and using a consistent format
                     $fields = [];
                     foreach ($sizeFields as $fieldName) {
-                        $sanitizedName = trim($fieldName); // Remove trailing/leading spaces
-                        $fields[] = TextInput::make("size." . str_replace(' ', '_', $sanitizedName))
-                            ->label($sanitizedName)
+                        // Bersihkan nama field dari spasi di awal dan akhir
+                        $cleanFieldName = trim($fieldName);
+                        
+                        // Buat key yang aman untuk form
+                        $safeKey = str_replace(' ', '_', strtolower($cleanFieldName));
+                        
+                        $fields[] = TextInput::make("size.{$safeKey}")
+                            ->label($cleanFieldName)
                             ->numeric()
                             ->required();
                     }
 
-                    // Tampilkan field dalam grid
                     return [
                         Grid::make(3)
                             ->schema($fields)
