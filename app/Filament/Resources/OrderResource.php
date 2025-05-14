@@ -128,11 +128,12 @@ class OrderResource extends Resource
                     // Periksa apakah size adalah string JSON atau sudah array
                     $sizeFields = is_string($sizeModel->size) ? json_decode($sizeModel->size, true) : $sizeModel->size;
 
-                    // Buat field input untuk setiap ukuran
+                    // Sanitize field names by trimming spaces and using a consistent format
                     $fields = [];
                     foreach ($sizeFields as $fieldName) {
-                        $fields[] = TextInput::make("size.$fieldName")
-                            ->label($fieldName)
+                        $sanitizedName = trim($fieldName); // Remove trailing/leading spaces
+                        $fields[] = TextInput::make("size." . str_replace(' ', '_', $sanitizedName))
+                            ->label($sanitizedName)
                             ->numeric()
                             ->required();
                     }
