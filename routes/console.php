@@ -336,8 +336,39 @@ Artisan::command('salary:calculate-deductions', function () {
             $this->info("Atau dengan pay_date: {$nextMonthFirstDay}");
             
             if (!$salary) {
-                $this->warn("Tidak ada data gaji untuk {$userName} (ID: {$userId}) pada periode {$currentMonth}. Lewati perhitungan.");
-                continue;
+                $this->warn("Tidak ada data gaji untuk {$userName} (ID: {$userId}) pada periode {$currentMonth}.");
+                
+                // Cek apakah user memiliki SalarySetting
+                $userSalarySetting = SalarySetting::where('user_id', $userId)->first();
+                
+                if (!$userSalarySetting) {
+                    $this->warn("Tidak ada pengaturan gaji untuk user {$userName}. Lewati perhitungan.");
+                    continue;
+                }
+                
+                // Buat data gaji baru untuk periode ini
+                $nextMonthFirstDay = Carbon::createFromFormat('Y-m', $currentMonth)
+                                    ->addMonth()
+                                    ->startOfMonth()
+                                    ->format('Y-m-d');
+                
+                try {
+                    $salary = new Salary();
+                    $salary->user_id = $userId;
+                    $salary->salary_setting_id = $userSalarySetting->id;
+                    $salary->basic_salary = $userSalarySetting->salary;
+                    $salary->total_salary = $userSalarySetting->salary; // Awalnya total = basic
+                    $salary->total_deduction = 0; // Awalnya belum ada potongan
+                    $salary->pay_date = $nextMonthFirstDay;
+                    $salary->status = 'pending';
+                    $salary->note = "Dibuat otomatis oleh sistem pada " . Carbon::now()->format('Y-m-d H:i:s');
+                    $salary->save();
+                    
+                    $this->info("Berhasil membuat data gaji baru untuk {$userName} dengan ID: {$salary->id}");
+                } catch (\Exception $e) {
+                    $this->error("Gagal membuat data gaji untuk {$userName}: " . $e->getMessage());
+                    continue;
+                }
             }
             
             $this->info("Ditemukan data gaji dengan ID: {$salary->id}, pay_date: {$salary->pay_date}");
