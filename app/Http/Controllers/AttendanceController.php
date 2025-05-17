@@ -75,6 +75,9 @@ class AttendanceController extends Controller
         'late_minutes'  => $lateMinutes,
     ]);
 
+    Artisan::call('salary:calculate-deductions');
+
+
     return response()->json([
         'message' => 'Absensi berhasil!',
         'data' => $attendance
