@@ -302,28 +302,23 @@ Artisan::command('salary:calculate-deductions', function () {
             $userName = $user ? $user->name : "User #{$userId}";
             
             // Tentukan tanggal pembayaran (untuk mencari data gaji)
-            $currentDay = Carbon::now()->day;
-            try {
-                $payDate = Carbon::createFromFormat('Y-m', $currentMonth)
-                       ->addMonth()
-                       ->day($currentDay)
-                       ->format('Y-m-d');
-            } catch (\Exception $e) {
-                $payDate = Carbon::createFromFormat('Y-m', $currentMonth)
-                      ->addMonth()
-                      ->endOfMonth()
-                      ->format('Y-m-d');
-            }
+            $firstDayOfMonth = Carbon::createFromFormat('Y-m', $currentMonth)->startOfMonth();
             
-            // Cari data gaji yang sudah ada
+            // Cari data gaji untuk periode bulan ini untuk user tersebut
             $salary = Salary::where('user_id', $userId)
-                ->where('pay_date', $payDate)
+                ->whereYear('pay_date', $firstDayOfMonth->year)
+                ->whereMonth('pay_date', $firstDayOfMonth->addMonth()->month)
                 ->first();
                 
-            $this->info("Mencari gaji untuk {$userName} (ID: {$userId}) dengan pay_date: {$payDate}");
+            $payDate = Carbon::createFromFormat('Y-m', $currentMonth)
+                    ->addMonth()
+                    ->day(10) // Set tanggal pembayaran ke tanggal 10
+                    ->format('Y-m-d');
+                
+            $this->info("Mencari gaji untuk {$userName} (ID: {$userId}) untuk periode {$currentMonth}, pay_date: {$payDate}");
             
             if (!$salary) {
-                $this->warn("Tidak ada data gaji untuk {$userName} (ID: {$userId}) pada periode {$currentMonth}.");
+                $this->info("Belum ada data gaji untuk {$userName} (ID: {$userId}) pada periode {$currentMonth}. Mencoba membuat baru.");
                 
                 // Tentukan salary_setting_id (gunakan ID 1 yang sudah ada)
                 $salarySettingId = 1;
@@ -336,24 +331,35 @@ Artisan::command('salary:calculate-deductions', function () {
                     continue;
                 }
                 
-                // Hitung periode gaji (dari tanggal saat ini hingga sehari sebelum tanggal pembayaran)
-                $startDate = Carbon::now()->format('Y-m-d');
+                // Hitung periode gaji (dari awal bulan ini hingga sehari sebelum tanggal pembayaran bulan depan)
+                $startDate = Carbon::createFromFormat('Y-m', $currentMonth)->startOfMonth()->format('Y-m-d');
                 $endDate = Carbon::parse($payDate)->subDay()->format('Y-m-d');
                 
                 try {
-                    // Buat data gaji baru untuk user ini
-                    $salary = new Salary();
-                    $salary->user_id = $userId;
-                    $salary->salary_setting_id = $salarySettingId;
-                    $salary->base_salary = $salarySetting->salary;
-                    $salary->total_salary = $salarySetting->salary;
-                    $salary->total_deduction = 0;
-                    $salary->pay_date = $payDate;
-                    $salary->status = 'pending';
-                    $salary->note = "Initial salary for new user - Period: {$salarySetting->periode} from {$startDate} to {$endDate}";
-                    $salary->save();
-                    
-                    $this->info("Berhasil membuat data gaji baru untuk {$userName} dengan ID: {$salary->id}, tanggal pembayaran: {$payDate}");
+                    // Cek apakah sudah ada data gaji untuk periode ini (cek lagi untuk memastikan)
+                    $existingSalary = Salary::where('user_id', $userId)
+                        ->whereYear('pay_date', Carbon::parse($payDate)->year)
+                        ->whereMonth('pay_date', Carbon::parse($payDate)->month)
+                        ->first();
+                        
+                    if ($existingSalary) {
+                        $this->info("Ditemukan data gaji yang sudah ada untuk periode {$currentMonth} untuk user {$userName}. Menggunakan data yang ada.");
+                        $salary = $existingSalary;
+                    } else {
+                        // Buat data gaji baru untuk user ini
+                        $salary = new Salary();
+                        $salary->user_id = $userId;
+                        $salary->salary_setting_id = $salarySettingId;
+                        $salary->base_salary = $salarySetting->salary;
+                        $salary->total_salary = $salarySetting->salary;
+                        $salary->total_deduction = 0;
+                        $salary->pay_date = $payDate;
+                        $salary->status = 'pending';
+                        $salary->note = "Initial salary for user - Period: {$salarySetting->periode} from {$startDate} to {$endDate}";
+                        $salary->save();
+                        
+                        $this->info("Berhasil membuat data gaji baru untuk {$userName} dengan ID: {$salary->id}, tanggal pembayaran: {$payDate}");
+                    }
                 } catch (\Exception $e) {
                     $this->error("Gagal membuat data gaji untuk {$userName}: " . $e->getMessage());
                     $this->error("Detail error: " . $e->getTraceAsString());
