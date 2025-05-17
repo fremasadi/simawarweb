@@ -301,7 +301,6 @@ Artisan::command('salary:calculate-deductions', function () {
                 
             $payDate = Carbon::createFromFormat('Y-m', $currentMonth)
                     ->addMonth()
-                    ->day(10) // Set tanggal pembayaran ke tanggal 10
                     ->format('Y-m-d');
                 
             $this->info("Mencari gaji untuk {$userName} (ID: {$userId}) untuk periode {$currentMonth}, pay_date: {$payDate}");
