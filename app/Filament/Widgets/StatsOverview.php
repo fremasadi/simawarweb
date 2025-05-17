@@ -29,6 +29,7 @@ class StatsOverview extends BaseWidget
         $attendancePercentage = $totalKaryawan > 0 
             ? round(($todayPresent / $totalKaryawan) * 100) 
             : 0;
+
         
         // Hitung pesanan aktif
         $activeOrders = Order::whereNotIn('status', ['selesai', 'dibatalkan'])->count();
