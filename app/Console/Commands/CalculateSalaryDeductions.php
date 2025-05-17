@@ -48,6 +48,9 @@ class CalculateSalaryDeductions extends Command
         $currentMonth = Carbon::now()->format('Y-m');
         $this->info("Menghitung pengurangan gaji untuk periode: {$currentMonth}");
         
+        // PERBAIKAN: Periksa dan update setting salary jika diperlukan
+        $this->checkAndUpdateSalarySetting();
+        
         // Ambil pengaturan toko
         $storeSetting = StoreSetting::first();
 
@@ -76,6 +79,9 @@ class CalculateSalaryDeductions extends Command
             $this->warn("Belum melewati waktu tutup toko. Perhitungan potongan gaji ditunda.");
             return 0;
         }
+        
+        // PERBAIKAN: Periksa dan update semua data gaji yang sudah ada dengan base_salary null
+        $this->updateExistingSalariesWithNullBaseSalary();
         
         // Ambil semua data absensi dengan filter bulan ini dan belum ada potongan
         $attendances = $this->getUnprocessedAttendances($currentMonth);
@@ -263,9 +269,39 @@ class CalculateSalaryDeductions extends Command
      */
     protected function getSalaryForUser($userId, $userName, $currentMonth)
     {
+        // PERBAIKAN: Tentukan salary_setting_id dan ambil data salary setting terlebih dahulu
+        $salarySettingId = 1; // Default salary setting ID
+        
+        // Ambil data salary setting
+        $salarySetting = SalarySetting::find($salarySettingId);
+        
+        if (!$salarySetting) {
+            $this->warn("Tidak dapat menemukan pengaturan gaji dengan ID {$salarySettingId}");
+            return null;
+        }
+
+        // PERBAIKAN: Pastikan nilai salary pada SalarySetting tidak NULL
+        if (is_null($salarySetting->salary)) {
+            $this->warn("Salary setting ID {$salarySettingId} memiliki nilai salary NULL");
+            
+            // Set nilai default untuk salary jika null
+            $baseSalary = 3000000; // Default 3 juta jika tidak ada nilai
+            
+            // Update salary setting dengan nilai default
+            $salarySetting->salary = $baseSalary;
+            $salarySetting->save();
+            
+            $this->info("Nilai salary di SalarySetting diupdate menjadi {$baseSalary}");
+        } else {
+            $baseSalary = $salarySetting->salary;
+        }
+        
+        $this->info("Menggunakan salary setting ID: {$salarySetting->id}, Base Salary: {$baseSalary}");
+        
         // Tentukan tanggal pembayaran (untuk mencari data gaji)
         $firstDayOfMonth = Carbon::createFromFormat('Y-m', $currentMonth)->startOfMonth();
         $nextMonth = $firstDayOfMonth->copy()->addMonth();
+        $payDate = $nextMonth->format('Y-m-d');
         
         // Cari data gaji untuk periode bulan ini untuk user tersebut
         $salary = Salary::where('user_id', $userId)
@@ -273,41 +309,10 @@ class CalculateSalaryDeductions extends Command
             ->whereMonth('pay_date', $nextMonth->month)
             ->first();
             
-        $payDate = $nextMonth->format('Y-m-d');
-        
         $this->info("Mencari gaji untuk {$userName} (ID: {$userId}) untuk periode {$currentMonth}, pay_date: {$payDate}");
         
         if (!$salary) {
-            $this->info("Belum ada data gaji untuk {$userName}. Mencoba membuat baru.");
-            
-            // PERBAIKAN: Gunakan default salary_setting_id=1 jika tidak ada yang lain
-            $salarySettingId = 1;
-            
-            // Ambil data salary setting
-            $salarySetting = SalarySetting::find($salarySettingId);
-            
-            if (!$salarySetting) {
-                $this->warn("Tidak dapat menemukan pengaturan gaji dengan ID {$salarySettingId}");
-                return null;
-            }
-
-            // PERBAIKAN: Cek dan pastikan salary setting memiliki nilai base_salary
-            if (is_null($salarySetting->salary)) {
-                $this->warn("Salary setting ID {$salarySettingId} memiliki nilai salary NULL");
-                
-                // PERBAIKAN: Set nilai default untuk salary jika null
-                $baseSalary = 0; // Default jika tidak ada
-                
-                // Update salary setting dengan nilai default
-                $salarySetting->salary = $baseSalary;
-                $salarySetting->save();
-                
-                $this->info("Nilai salary di SalarySetting diupdate menjadi {$baseSalary}");
-            } else {
-                $baseSalary = $salarySetting->salary;
-            }
-            
-            $this->info("Menggunakan salary setting ID: {$salarySetting->id}, Salary: {$baseSalary}");
+            $this->info("Belum ada data gaji untuk {$userName}. Membuat baru.");
             
             // Hitung periode gaji
             $startDate = Carbon::createFromFormat('Y-m', $currentMonth)->startOfMonth()->format('Y-m-d');
@@ -323,12 +328,20 @@ class CalculateSalaryDeductions extends Command
                 if ($existingSalary) {
                     $this->info("Ditemukan data gaji yang sudah ada untuk periode {$currentMonth}. Menggunakan data yang ada.");
                     $salary = $existingSalary;
+                    
+                    // PERBAIKAN: Update base_salary jika NULL atau 0
+                    if (is_null($salary->base_salary) || $salary->base_salary == 0) {
+                        $salary->base_salary = $baseSalary;
+                        $salary->total_salary = $baseSalary - ($salary->total_deduction ?? 0);
+                        $salary->save();
+                        $this->info("Updated base_salary yang NULL ke {$baseSalary} untuk data gaji yang sudah ada");
+                    }
                 } else {
                     // Buat data gaji baru untuk user ini
                     $salary = new Salary();
                     $salary->user_id = $userId;
                     $salary->salary_setting_id = $salarySettingId;
-                    $salary->base_salary = $baseSalary; // PERBAIKAN: Pastikan tidak NULL
+                    $salary->base_salary = $baseSalary; // Pastikan tidak NULL
                     $salary->total_salary = $baseSalary;
                     $salary->total_deduction = 0;
                     $salary->pay_date = $payDate;
@@ -336,12 +349,21 @@ class CalculateSalaryDeductions extends Command
                     $salary->note = "Initial salary for user - Period: {$salarySetting->periode} from {$startDate} to {$endDate}";
                     $salary->save();
                     
-                    $this->info("Berhasil membuat data gaji baru untuk {$userName} dengan ID: {$salary->id}");
+                    $this->info("Berhasil membuat data gaji baru untuk {$userName} dengan ID: {$salary->id}, base_salary: {$baseSalary}");
                 }
             } catch (\Exception $e) {
                 $this->error("Gagal membuat data gaji untuk {$userName}: " . $e->getMessage());
                 Log::error("Gagal membuat data gaji: " . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
                 return null;
+            }
+        } else {
+            // PERBAIKAN: Jika salary sudah ada, periksa apakah base_salary-nya NULL atau 0
+            if (is_null($salary->base_salary) || $salary->base_salary == 0) {
+                $this->warn("Data gaji ditemukan tetapi base_salary NULL atau 0, melakukan update");
+                $salary->base_salary = $baseSalary;
+                $salary->total_salary = $baseSalary - ($salary->total_deduction ?? 0);
+                $salary->save();
+                $this->info("Updated base_salary menjadi {$baseSalary}");
             }
         }
         
@@ -492,9 +514,20 @@ class CalculateSalaryDeductions extends Command
     protected function updateSalaryWithDeductions($salary, $salarySetting, $existingDeduction, $additionalDeduction, $userName, $deductionDetails)
     {
         // PERBAIKAN: Pastikan base_salary di salary tidak null
-        if (is_null($salary->base_salary)) {
-            $salary->base_salary = $salarySetting->salary ?? 0;
-            $this->info("Base salary untuk {$userName} adalah null, diatur ke {$salary->base_salary}");
+        if (is_null($salary->base_salary) || $salary->base_salary == 0) {
+            // Ambil nilai dari salary setting atau gunakan default yang wajar
+            $defaultBaseSalary = 3000000; // 3 juta rupiah sebagai default wajar
+            $salary->base_salary = $salarySetting->salary ?? $defaultBaseSalary;
+            $this->info("Base salary untuk {$userName} adalah null/0, diatur ke {$salary->base_salary}");
+            
+            // Simpan base_salary yang baru
+            try {
+                $salary->save();
+                $this->info("Berhasil menyimpan base_salary yang baru");
+            } catch (\Exception $e) {
+                $this->error("Gagal menyimpan base_salary: " . $e->getMessage());
+                Log::error("Gagal update base_salary: " . $e->getMessage());
+            }
         }
         
         // Cek batas maksimal pengurangan (% dari total gaji)
@@ -553,6 +586,109 @@ class CalculateSalaryDeductions extends Command
         } catch (\Exception $updateError) {
             $this->error("Error saat update salary: " . $updateError->getMessage());
             Log::error("Error saat update salary: " . $updateError->getMessage());
+        }
+    }
+
+    /**
+     * Periksa dan perbarui pengaturan gaji jika perlu
+     * 
+     * @return void
+     */
+    protected function checkAndUpdateSalarySetting()
+    {
+        $this->info("Memeriksa pengaturan gaji (SalarySetting)...");
+        
+        // Ambil setting gaji dengan ID 1 (default)
+        $salarySetting = SalarySetting::find(1);
+        
+        if (!$salarySetting) {
+            $this->warn("SalarySetting dengan ID 1 tidak ditemukan, mencoba membuat baru...");
+            
+            // Buat setting gaji baru dengan nilai default
+            try {
+                $salarySetting = new SalarySetting();
+                $salarySetting->id = 1;
+                $salarySetting->periode = 'bulanan';
+                $salarySetting->salary = 3000000; // Default gaji 3 juta
+                $salarySetting->deduction_per_minute = 1000;
+                $salarySetting->reduction_if_absent = 50000;
+                $salarySetting->save();
+                
+                $this->info("Berhasil membuat SalarySetting baru dengan ID 1 dan salary Rp3.000.000");
+            } catch (\Exception $e) {
+                $this->error("Gagal membuat SalarySetting: " . $e->getMessage());
+            }
+        } else {
+            // Pastikan nilai salary tidak null
+            if (is_null($salarySetting->salary) || $salarySetting->salary == 0) {
+                $this->warn("SalarySetting ditemukan tetapi salary NULL atau 0, mengupdate...");
+                
+                $salarySetting->salary = 3000000; // Default gaji 3 juta
+                
+                try {
+                    $salarySetting->save();
+                    $this->info("Berhasil mengupdate SalarySetting: salary diatur ke Rp3.000.000");
+                } catch (\Exception $e) {
+                    $this->error("Gagal mengupdate SalarySetting: " . $e->getMessage());
+                }
+            } else {
+                $this->info("SalarySetting ditemukan dengan salary: Rp" . number_format($salarySetting->salary, 0, ',', '.'));
+            }
+        }
+    }
+
+    /**
+     * Perbarui semua data gaji yang sudah ada dengan base_salary null
+     * 
+     * @return void
+     */
+    protected function updateExistingSalariesWithNullBaseSalary()
+    {
+        $this->info("Memeriksa data gaji yang memiliki base_salary NULL atau 0...");
+        
+        $currentMonth = Carbon::now()->format('Y-m');
+        $firstDayOfMonth = Carbon::createFromFormat('Y-m', $currentMonth)->startOfMonth();
+        $nextMonth = $firstDayOfMonth->copy()->addMonth();
+        
+        // Ambil setting gaji
+        $salarySetting = SalarySetting::find(1);
+        if (!$salarySetting || is_null($salarySetting->salary) || $salarySetting->salary == 0) {
+            $defaultSalary = 3000000; // Default jika tidak ada
+        } else {
+            $defaultSalary = $salarySetting->salary;
+        }
+        
+        // Ambil semua data gaji dengan base_salary NULL atau 0
+        $nullSalaries = Salary::whereNull('base_salary')
+            ->orWhere('base_salary', 0)
+            ->get();
+            
+        if ($nullSalaries->isEmpty()) {
+            $this->info("Tidak ditemukan data gaji dengan base_salary NULL atau 0.");
+            return;
+        }
+        
+        $this->info("Ditemukan " . $nullSalaries->count() . " data gaji dengan base_salary NULL atau 0.");
+        
+        // Update semua data gaji yang memiliki base_salary NULL
+        foreach ($nullSalaries as $salary) {
+            $user = User::find($salary->user_id);
+            $userName = $user ? $user->name : "User #{$salary->user_id}";
+            
+            $this->info("Updating salary ID {$salary->id} untuk {$userName}: base_salary NULL/0 -> {$defaultSalary}");
+            
+            try {
+                $salary->base_salary = $defaultSalary;
+                $salary->total_salary = $defaultSalary - ($salary->total_deduction ?? 0);
+                $salary->note = ($salary->note ? $salary->note . "\n" : "") . 
+                                "Base salary diperbarui otomatis pada " . 
+                                Carbon::now()->format('Y-m-d H:i:s');
+                $salary->save();
+                
+                $this->info("Berhasil mengupdate base_salary untuk Salary ID {$salary->id}");
+            } catch (\Exception $e) {
+                $this->error("Gagal mengupdate Salary ID {$salary->id}: " . $e->getMessage());
+            }
         }
     }
 }
