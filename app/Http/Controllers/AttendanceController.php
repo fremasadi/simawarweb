@@ -75,9 +75,7 @@ class AttendanceController extends Controller
         'late_minutes'  => $lateMinutes,
     ]);
 
-    Artisan::call('salary:calculate-deductions');
-    \Log::info('Check-in user:', ['user' => Auth::user()]);
-
+    \Artisan::call('salary:calculate-deductions');
 
     return response()->json([
         'message' => 'Absensi berhasil!',
