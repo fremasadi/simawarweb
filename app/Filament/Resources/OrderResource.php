@@ -80,7 +80,7 @@ class OrderResource extends Resource
                     ->columns(1),
                 Forms\Components\TextInput::make('name')
                     ->label('Nama Pemesanan')
-                    ->required()
+                    ->required("Masukan")
                     ->maxLength(255),
                 Forms\Components\Textarea::make('address')
                     ->label('Alamat Pemesanan')
@@ -154,7 +154,7 @@ class OrderResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('name')
-                    ->label('Nama Pesanan') // Menambahkan label
+                    ->label('Nama Pemesan') // Menambahkan label
                     ->searchable(),
                 Tables\Columns\TextColumn::make('deadline')
                     ->label('Batas Waktu') // Menambahkan label

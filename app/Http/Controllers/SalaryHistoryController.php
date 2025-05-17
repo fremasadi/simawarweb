@@ -34,7 +34,7 @@ class SalaryHistoryController extends Controller
         'data' => $salaries,
     ]);
 }
-
+//megambil data potongan gaji
 public function showDeductions($salary_id)
 {
     $deductions = SalaryDeductionHistories::with(['attendance'])

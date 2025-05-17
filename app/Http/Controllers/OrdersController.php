@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Http;
 
 class OrdersController extends Controller
 {
+    // mengambil data order bedasarjkan token
     public function index(Request $request)
     {
         $user = $request->user();
@@ -57,6 +58,7 @@ class OrdersController extends Controller
         ]);
     }
 
+    // mengambil pesanan bedasarkan karyawan
     public function takeOrder($id)
 {
     $user = Auth::user();
@@ -115,6 +117,7 @@ class OrdersController extends Controller
     ]);
 }
 
+//mengambil data pesanan karyawan prosess
     public function getOngoingOrders(Request $request)
     {
         $user = $request->user();
@@ -160,6 +163,7 @@ class OrdersController extends Controller
         ]);
     }
 
+    //jumlah pesanan yang diselesaikan
     public function countCompletedOrders(Request $request)
     {
         $user = $request->user();
@@ -182,6 +186,7 @@ class OrdersController extends Controller
         ]);
     }
 
+    //data pesanan yang selesai
     public function getCompletedOrders(Request $request)
 {
     $user = $request->user();

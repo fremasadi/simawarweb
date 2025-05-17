@@ -43,16 +43,16 @@ class AttendanceResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\TextInput::make('user_id')
-                    ->required()
-                    ->numeric(),
-                Forms\Components\DatePicker::make('date')
-                    ->required(),
-                Forms\Components\TextInput::make('check_in'),
-                Forms\Components\TextInput::make('status')
-                    ->required(),
-                Forms\Components\TextInput::make('late_minutes')
-                    ->numeric(),
+                // Forms\Components\TextInput::make('user_id')
+                //     ->required()
+                //     ->numeric(),
+                // Forms\Components\DatePicker::make('date')
+                //     ->required(),
+                // Forms\Components\TextInput::make('check_in'),
+                // Forms\Components\TextInput::make('status')
+                //     ->required(),
+                // Forms\Components\TextInput::make('late_minutes')
+                //     ->numeric(),
             ]);
     }
 
@@ -93,7 +93,7 @@ class AttendanceResource extends Resource
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    // Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ]);
     }

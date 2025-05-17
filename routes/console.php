@@ -62,7 +62,7 @@ Artisan::command('check:firebase-setup', function () {
     $this->info('Firebase setup check completed');
 });
 
-
+//notif aplikasi
 Artisan::command('send:firebase-notification', function () {
     $messaging = app('firebase.messaging');
 

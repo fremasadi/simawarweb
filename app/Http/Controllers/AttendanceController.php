@@ -10,6 +10,7 @@ use App\Models\StoreSetting;
 
 class AttendanceController extends Controller
 {
+    // untuk absensi
     public function checkIn(Request $request)
 {
     if ($request->qr_code !== 'simawar') {
@@ -82,6 +83,8 @@ class AttendanceController extends Controller
         'data' => $attendance
     ], 201);
 }
+    // untuk tampilkan absensi
+
 public function history(Request $request)
 {
     // Dapatkan user yang sedang login berdasarkan token
