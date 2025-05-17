@@ -184,31 +184,12 @@ Artisan::command('salary:calculate-deductions', function () {
     $today = Carbon::today();
     $yesterday = Carbon::yesterday();
     
-    // Tentukan apakah kita sudah melewati waktu tutup toko
-    $closeTime = Carbon::parse($storeSetting->close_time);
-    $isAfterCloseTime = false;
+    // Debug info tentang waktu saat ini
+    $this->info("Waktu saat ini: {$currentTime}, Tanggal hari ini: {$today->format('Y-m-d')}, Kemarin: {$yesterday->format('Y-m-d')}");
     
-    // Jika waktu tutup lebih kecil dari waktu buka, artinya tutup di hari berikutnya
-    if ($closeTime->format('H:i:s') < $storeSetting->open_time) {
-        // Jika sekarang antara 00:00 sampai waktu tutup, kita masih dalam operasional hari kemarin
-        if ($now->format('H:i:s') <= $closeTime->format('H:i:s')) {
-            $this->info("Saat ini ({$currentTime}) masih dalam jam operasional kemarin (tutup: {$closeTime->format('H:i:s')})");
-            $isAfterCloseTime = false;
-        } else {
-            $this->info("Saat ini ({$currentTime}) sudah melewati jam tutup toko ({$closeTime->format('H:i:s')})");
-            $isAfterCloseTime = true;
-        }
-    } else {
-        // Jika waktu tutup di hari yang sama
-        // Jika sekarang lebih dari waktu tutup, berarti sudah bisa cek
-        if ($now->format('H:i:s') >= $closeTime->format('H:i:s')) {
-            $this->info("Saat ini ({$currentTime}) sudah melewati jam tutup toko ({$closeTime->format('H:i:s')})");
-            $isAfterCloseTime = true;
-        } else {
-            $this->info("Saat ini ({$currentTime}) belum melewati jam tutup toko ({$closeTime->format('H:i:s')})");
-            $isAfterCloseTime = false;
-        }
-    }
+    // For testing purposes, set isAfterCloseTime to true regardless of actual time
+    $isAfterCloseTime = true;
+    $this->info("PENTING: Mode debug aktif, isAfterCloseTime selalu true");
     
     // Hanya lanjutkan proses jika sudah melewati waktu tutup toko
     if (!$isAfterCloseTime) {
@@ -224,14 +205,22 @@ Artisan::command('salary:calculate-deductions', function () {
                   ->from('salary_deduction_histories')
                   ->whereRaw('salary_deduction_histories.attendance_id = attendances.id');
         })
+        ->orderBy('date', 'asc')
         ->get();
         
+    $this->info("Query absensi untuk bulan: {$currentMonth}");
+    
     if ($attendances->isEmpty()) {
         $this->info("Tidak ada data absensi yang perlu dihitung potongannya.");
         return 0;
     }
 
     $this->info("Ditemukan " . $attendances->count() . " data absensi yang perlu dihitung.");
+    
+    // Debug info untuk absensi yang ditemukan
+    foreach ($attendances as $att) {
+        $this->info("Data absensi ditemukan: ID {$att->id}, User ID {$att->user_id}, Tanggal {$att->date}, Status {$att->status}, Late Minutes {$att->late_minutes}");
+    }
     
     // Filter attendances untuk mengecualikan hari Minggu dan hari libur lainnya
     $filteredAttendances = collect();
@@ -401,18 +390,9 @@ Artisan::command('salary:calculate-deductions', function () {
                 $validationNote = "";
                 
                 if ($attendance->status === 'telat' && $attendance->check_in) {
-                    $checkInTime = Carbon::parse($attendance->check_in)->format('H:i:s');
-                    $openTime = $storeSetting->open_time;
-                    
-                    // Toleransi keterlambatan (bisa disesuaikan)
-                    $gracePeriodMinutes = 15; // 15 menit toleransi
-                    $openTimePlusGrace = Carbon::parse($openTime)->addMinutes($gracePeriodMinutes)->format('H:i:s');
-                    
-                    // Jika check-in sebelum jam buka + toleransi, maka tidak dianggap telat
-                    if ($checkInTime <= $openTimePlusGrace) {
-                        $validAttendance = false;
-                        $validationNote = "check-in pada {$checkInTime} masih dalam batas toleransi (jam buka: {$openTime} + {$gracePeriodMinutes} menit)";
-                    }
+                    // Semua keterlambatan diproses, menghapus validasi terhadap jam buka toko
+                    // Keterlambatan dihitung berdasarkan nilai late_minutes yang sudah ada
+                    $validAttendance = true;
                 }
                 
                 if (!$validAttendance) {
@@ -422,21 +402,22 @@ Artisan::command('salary:calculate-deductions', function () {
 
                 // Hitung pengurangan berdasarkan keterlambatan
                 if ($attendance->status === 'telat' && $attendance->late_minutes > 0) {
-                    // VALIDASI: Minimal menit untuk dikenakan potongan
-                    $minimumLateMinutes = 15; // Contoh: minimal telat 15 menit baru kena potongan
-                    
-                    if ($attendance->late_minutes < $minimumLateMinutes) {
-                        $this->info("Melewati absensi ID {$attendance->id} untuk {$userName} tanggal {$attendance->date} karena telat hanya {$attendance->late_minutes} menit (minimal {$minimumLateMinutes} menit)");
-                        continue;
-                    }
+                    // Semua keterlambatan dikenakan potongan, tidak ada minimal menit
+                    // (Menghapus pemeriksaan minimal 15 menit)
                     
                     $lateMinutes = $attendance->late_minutes;
                     
                     // VALIDASI: Maksimal potongan per hari untuk keterlambatan
                     $maxDailyDeduction = 100000; // Contoh: maksimal potongan 100.000 per hari
                     
-                    $calculatedDeduction = $lateMinutes * $salarySetting->deduction_per_minute;
+                    // Gunakan nilai minimum deduction per minute jika deduction_per_minute adalah 0
+                    $deductionPerMinute = $salarySetting->deduction_per_minute > 0 ? 
+                                         $salarySetting->deduction_per_minute : 1000; // Default 1000 per menit jika 0
+                    
+                    $calculatedDeduction = $lateMinutes * $deductionPerMinute;
                     $deductionAmount = min($calculatedDeduction, $maxDailyDeduction);
+                    
+                    $this->info("Menghitung potongan untuk keterlambatan {$lateMinutes} menit dengan rate {$deductionPerMinute}/menit = {$calculatedDeduction}");
                     
                     if ($calculatedDeduction > $maxDailyDeduction) {
                         $this->info("Potongan untuk {$userName} tanggal {$attendance->date} dibatasi dari {$calculatedDeduction} menjadi {$maxDailyDeduction} (batas maksimal per hari)");
@@ -456,8 +437,14 @@ Artisan::command('salary:calculate-deductions', function () {
 
                 // Hitung pengurangan jika tidak hadir
                 if ($attendance->status === 'tidak hadir') {
-                    $deductionAmount = $salarySetting->reduction_if_absent;
+                    // Pastikan ada nilai untuk reduction_if_absent
+                    $absenceDeduction = $salarySetting->reduction_if_absent > 0 ? 
+                                        $salarySetting->reduction_if_absent : 50000; // Default 50.000 jika 0
+                    
+                    $deductionAmount = $absenceDeduction;
                     $additionalDeduction += $deductionAmount;
+                    
+                    $this->info("Menghitung potongan untuk ketidakhadiran sebesar {$deductionAmount}");
                     
                     // Catat detail
                     $deductionDetails[] = [
