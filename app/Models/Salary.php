@@ -57,31 +57,31 @@ class Salary extends Model
     /**
      * Hook sebelum menyimpan untuk memastikan total_salary dihitung dengan benar
      */
-    protected static function boot()
-    {
-        parent::boot();
+    // protected static function boot()
+    // {
+    //     parent::boot();
 
-        static::creating(function ($salary) {
-            // Saat membuat record baru, ambil salary dari setting dan simpan ke base_salary
-            if (empty($salary->base_salary) && $salary->salarySetting) {
-                $salary->base_salary = $salary->salarySetting->salary;
-            }
+    //     static::creating(function ($salary) {
+    //         // Saat membuat record baru, ambil salary dari setting dan simpan ke base_salary
+    //         if (empty($salary->base_salary) && $salary->salarySetting) {
+    //             $salary->base_salary = $salary->salarySetting->salary;
+    //         }
             
-            // Set pay_date ke bulan berikutnya jika belum diisi
-            if (empty($salary->pay_date)) {
-                $today = Carbon::now();
-                $salary->pay_date = $today->copy()->addMonth(); // Tanggal yang sama bulan depan
-            }
+    //         // Set pay_date ke bulan berikutnya jika belum diisi
+    //         if (empty($salary->pay_date)) {
+    //             $today = Carbon::now();
+    //             $salary->pay_date = $today->copy()->addMonth(); // Tanggal yang sama bulan depan
+    //         }
             
-            // Hitung total_salary
-            $salary->recalculateTotalSalary();
-        });
+    //         // Hitung total_salary
+    //         $salary->recalculateTotalSalary();
+    //     });
 
-        static::saving(function ($salary) {
-            // Update total_salary jika total_deduction atau base_salary diubah
-            if ($salary->isDirty('total_deduction') || $salary->isDirty('base_salary')) {
-                $salary->recalculateTotalSalary();
-            }
-        });
-    }
+    //     static::saving(function ($salary) {
+    //         // Update total_salary jika total_deduction atau base_salary diubah
+    //         if ($salary->isDirty('total_deduction') || $salary->isDirty('base_salary')) {
+    //             $salary->recalculateTotalSalary();
+    //         }
+    //     });
+    // }
 }
