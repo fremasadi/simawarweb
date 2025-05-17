@@ -189,7 +189,13 @@ class CalculateSalaryDeductions extends Command
                         $this->warn("Tidak dapat menemukan pengaturan gaji dengan ID {$salarySettingId}. Lewati perhitungan.");
                         continue;
                     }
-                    
+
+                    // Pastikan salary tidak null
+                    if (is_null($salarySetting->salary)) {
+                        $this->warn("Salary setting ID {$salarySettingId} memiliki nilai salary NULL. Lewati perhitungan.");
+                        continue;
+                    }
+                    $this->info("Menggunakan salary setting ID: {$salarySetting->id}, Salary: {$salarySetting->salary}");
                     // Hitung periode gaji (dari awal bulan ini hingga sehari sebelum tanggal pembayaran bulan depan)
                     $startDate = Carbon::createFromFormat('Y-m', $currentMonth)->startOfMonth()->format('Y-m-d');
                     $endDate = Carbon::parse($payDate)->subDay()->format('Y-m-d');
@@ -209,7 +215,7 @@ class CalculateSalaryDeductions extends Command
                             $salary = new Salary();
                             $salary->user_id = $userId;
                             $salary->salary_setting_id = $salarySettingId;
-                            $salary->base_salary = $salarySetting->salary;
+                            $salary->base_salary = $salarySetting->salary; // Pastikan ini tidak null
                             $salary->total_salary = $salarySetting->salary;
                             $salary->total_deduction = 0;
                             $salary->pay_date = $payDate;
