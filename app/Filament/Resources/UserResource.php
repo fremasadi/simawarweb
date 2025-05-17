@@ -49,6 +49,7 @@ public static function getNavigationGroup(): ?string
                 Forms\Components\TextInput::make('phone')
                     ->label('No.Telefon')
                     ->tel()
+                    ->numeric()
                     ->maxLength(255),
                 Forms\Components\FileUpload::make('image')
                     ->label('Foto')
