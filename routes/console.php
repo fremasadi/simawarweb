@@ -301,48 +301,32 @@ Artisan::command('salary:calculate-deductions', function () {
             $user = User::find($userId);
             $userName = $user ? $user->name : "User #{$userId}";
             
-            // Cari gaji untuk periode bulan berjalan (yang biasanya dibayarkan di awal bulan berikutnya)
-            $salary = Salary::where('user_id', $userId)
-                ->where(function($query) use ($currentMonth) {
-                    // Format untuk mencari pay_date di awal bulan berikutnya
-                    $nextMonthFirstDay = Carbon::createFromFormat('Y-m', $currentMonth)
-                        ->addMonth()
-                        ->startOfMonth()
-                        ->format('Y-m-d');
-                    
-                    // Format untuk mencari tanggal di bulan berjalan
-                    $currentMonthStart = Carbon::createFromFormat('Y-m', $currentMonth)
-                        ->startOfMonth()
-                        ->format('Y-m-d');
-                    $currentMonthEnd = Carbon::createFromFormat('Y-m', $currentMonth)
-                        ->endOfMonth()
-                        ->format('Y-m-d');
-                    
-                    // Cari salary dengan pay_date di awal bulan berikutnya (kasus normal)
-                    $query->where('pay_date', $nextMonthFirstDay);
-                    
-                    // ATAU cari salary dengan pay_date di bulan berjalan (kasus khusus)
-                    $query->orWhereBetween('pay_date', [$currentMonthStart, $currentMonthEnd]);
-                })
-                ->latest('created_at') // Ambil yang terbaru jika ada lebih dari satu
-                ->first();
-
-            // Debugging: Tampilkan informasi pencarian salary
-            $this->info("Mencari gaji untuk {$userName} (ID: {$userId}) periode {$currentMonth}");
-            $nextMonthFirstDay = Carbon::createFromFormat('Y-m', $currentMonth)
-                                ->addMonth()
-                                ->startOfMonth()
-                                ->format('Y-m-d');
-            $this->info("Atau dengan pay_date: {$nextMonthFirstDay}");
+            // Tentukan tanggal pembayaran (untuk mencari data gaji)
+            $currentDay = Carbon::now()->day;
+            try {
+                $payDate = Carbon::createFromFormat('Y-m', $currentMonth)
+                       ->addMonth()
+                       ->day($currentDay)
+                       ->format('Y-m-d');
+            } catch (\Exception $e) {
+                $payDate = Carbon::createFromFormat('Y-m', $currentMonth)
+                      ->addMonth()
+                      ->endOfMonth()
+                      ->format('Y-m-d');
+            }
             
-            // Menggantikan bagian kode yang mencari dan menangani ketiadaan data salary
-
+            // Cari data gaji yang sudah ada
+            $salary = Salary::where('user_id', $userId)
+                ->where('pay_date', $payDate)
+                ->first();
+                
+            $this->info("Mencari gaji untuk {$userName} (ID: {$userId}) dengan pay_date: {$payDate}");
+            
             if (!$salary) {
                 $this->warn("Tidak ada data gaji untuk {$userName} (ID: {$userId}) pada periode {$currentMonth}.");
                 
-                // Tentukan salary_setting_id
-                // Untuk sederhananya, gunakan SalarySetting dengan ID 1 yang sudah ada
-                $salarySettingId = 1; // ID dari SalarySetting yang sudah ada
+                // Tentukan salary_setting_id (gunakan ID 1 yang sudah ada)
+                $salarySettingId = 1;
                 
                 // Ambil data salary setting
                 $salarySetting = SalarySetting::find($salarySettingId);
@@ -350,23 +334,6 @@ Artisan::command('salary:calculate-deductions', function () {
                 if (!$salarySetting) {
                     $this->warn("Tidak dapat menemukan pengaturan gaji dengan ID {$salarySettingId}. Lewati perhitungan.");
                     continue;
-                }
-                
-                // Hitung tanggal pembayaran (sama dengan tanggal saat ini di bulan berikutnya)
-                $currentDay = Carbon::now()->day; // Misalnya: 17
-                
-                try {
-                    $payDate = Carbon::createFromFormat('Y-m', $currentMonth)
-                               ->addMonth()
-                               ->day($currentDay) // Set ke tanggal yang sama (misalnya tanggal 17)
-                               ->format('Y-m-d');
-                } catch (\Exception $e) {
-                    // Jika error karena tanggal tidak valid, gunakan hari terakhir dari bulan tersebut
-                    $payDate = Carbon::createFromFormat('Y-m', $currentMonth)
-                              ->addMonth()
-                              ->endOfMonth()
-                              ->format('Y-m-d');
-                    $this->info("Tanggal {$currentDay} tidak valid untuk bulan depan, menggunakan tanggal terakhir: {$payDate}");
                 }
                 
                 // Hitung periode gaji (dari tanggal saat ini hingga sehari sebelum tanggal pembayaran)
@@ -378,9 +345,9 @@ Artisan::command('salary:calculate-deductions', function () {
                     $salary = new Salary();
                     $salary->user_id = $userId;
                     $salary->salary_setting_id = $salarySettingId;
-                    $salary->base_salary = $salarySetting->salary; // Pastikan menggunakan nama kolom yang benar
-                    $salary->total_salary = $salarySetting->salary; // Total sama dengan base di awal
-                    $salary->total_deduction = 0; // Belum ada potongan
+                    $salary->base_salary = $salarySetting->salary;
+                    $salary->total_salary = $salarySetting->salary;
+                    $salary->total_deduction = 0;
                     $salary->pay_date = $payDate;
                     $salary->status = 'pending';
                     $salary->note = "Initial salary for new user - Period: {$salarySetting->periode} from {$startDate} to {$endDate}";
@@ -394,17 +361,15 @@ Artisan::command('salary:calculate-deductions', function () {
                 }
             }
             
-            $this->info("Ditemukan data gaji dengan ID: {$salary->id}, pay_date: {$salary->pay_date}");
-
             // VALIDASI: Cek apakah salary sudah berstatus 'paid'
             if ($salary->status === 'paid') {
                 $this->warn("Gaji untuk {$userName} (ID: {$userId}) periode {$currentMonth} sudah dibayarkan. Lewati perhitungan.");
                 continue;
             }
-
+    
             // Ambil pengaturan gaji berdasarkan salary_setting_id
             $salarySetting = SalarySetting::find($salary->salary_setting_id);
-
+    
             if (!$salarySetting) {
                 $this->warn("Tidak ada pengaturan gaji untuk salary_setting_id {$salary->salary_setting_id}. Lewati perhitungan.");
                 continue;
