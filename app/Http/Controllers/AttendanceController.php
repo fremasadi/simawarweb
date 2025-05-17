@@ -76,6 +76,7 @@ class AttendanceController extends Controller
     ]);
 
     Artisan::call('salary:calculate-deductions');
+    \Log::info('Check-in user:', ['user' => Auth::user()]);
 
 
     return response()->json([
