@@ -381,7 +381,7 @@ Artisan::command('salary:calculate-deductions', function () {
                 $salary = new Salary();
                 $salary->user_id = $userId;
                 $salary->salary_setting_id = $salarySettingId;
-                $salary->basic_salary = $salarySetting->salary;
+                $salary->base_salary = $salarySetting->salary;
                 $salary->total_salary = $salarySetting->salary; // Awalnya total = basic
                 $salary->total_deduction = 0; // Awalnya belum ada potongan
                 $salary->pay_date = $nextMonthFirstDay;
