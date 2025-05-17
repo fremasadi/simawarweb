@@ -22,10 +22,13 @@ class StatsOverview extends BaseWidget
         
         // Hitung kehadiran hari ini
         $today = Carbon::today()->toDateString();
-        $todayAttendances = Attendance::where('date', $today)->count();
-        $todayPresent = Attendance::where('date', $today)
-            ->where('status', 'hadir')
+
+        $todayAttendances = Attendance::whereDate('date', $today)->count();
+
+        $todayPresent = Attendance::whereDate('date', $today)
+            ->where('status', 'hadir') // pastikan case-nya sama
             ->count();
+
         $attendancePercentage = $totalKaryawan > 0 
             ? round(($todayPresent / $totalKaryawan) * 100) 
             : 0;
