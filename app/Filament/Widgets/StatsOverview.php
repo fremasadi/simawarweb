@@ -26,7 +26,7 @@ class StatsOverview extends BaseWidget
         $todayAttendances = Attendance::whereDate('date', $today)->count();
 
         $todayPresent = Attendance::whereDate('date', $today)
-            ->where('status', 'hadir') // pastikan case-nya sama
+            ->whereIn('status', ['hadir', 'telat'])
             ->count();
 
         $attendancePercentage = $totalKaryawan > 0 
