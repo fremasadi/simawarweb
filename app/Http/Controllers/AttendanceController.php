@@ -12,77 +12,77 @@ class AttendanceController extends Controller
 {
     // untuk absensi
     public function checkIn(Request $request)
-{
-    if ($request->qr_code !== 'simawar') {
-        return response()->json(['message' => 'QR Code tidak valid!'], 400);
-    }
-
-    $user = Auth::user();
-    $today = Carbon::now()->toDateString();
-    $attendance = Attendance::where('user_id', $user->id)->where('date', $today)->first();
-
-    if ($attendance) {
-        return response()->json(['message' => 'Anda sudah absen hari ini!'], 400);
-    }
-
-    $storeSetting = StoreSetting::first();
-    if (!$storeSetting) {
-        return response()->json(['message' => 'Pengaturan toko tidak ditemukan!'], 500);
-    }
-
-    // Check if store is open based on is_open flag
-    if (!$storeSetting->is_open) {
-        return response()->json(['message' => 'Toko sedang tutup!'], 400);
-    }
-
-    // Get current time
-    $now = Carbon::now();
+    {
+        if ($request->qr_code !== 'simawar') {
+            return response()->json(['message' => 'QR Code tidak valid!'], 400);
+        }
     
-    // Create Carbon instances for store open and close times today
-    $openTimeToday = Carbon::parse($today . ' ' . $storeSetting->open_time);
-    $closeTimeToday = Carbon::parse($today . ' ' . $storeSetting->close_time);
+        // ❌ Cek apakah hari ini Minggu
+        if (Carbon::now()->isSunday()) {
+            return response()->json(['message' => 'Absensi tidak diperbolehkan pada hari Minggu!'], 400);
+        }
     
-    // If close time is on the next day (e.g., overnight operation)
-    if ($closeTimeToday->lt($openTimeToday)) {
-        $closeTimeToday->addDay();
-    }
+        $user = Auth::user();
+        $today = Carbon::now()->toDateString();
+        $attendance = Attendance::where('user_id', $user->id)
+            ->where('date', $today)
+            ->first();
     
-    // Check if current time is within store operating hours
-    if ($now->lt($openTimeToday)) {
+        if ($attendance) {
+            return response()->json(['message' => 'Anda sudah absen hari ini!'], 400);
+        }
+    
+        $storeSetting = StoreSetting::first();
+        if (!$storeSetting) {
+            return response()->json(['message' => 'Pengaturan toko tidak ditemukan!'], 500);
+        }
+    
+        if (!$storeSetting->is_open) {
+            return response()->json(['message' => 'Toko sedang tutup!'], 400);
+        }
+    
+        $now = Carbon::now();
+        $openTimeToday = Carbon::parse($today . ' ' . $storeSetting->open_time);
+        $closeTimeToday = Carbon::parse($today . ' ' . $storeSetting->close_time);
+    
+        if ($closeTimeToday->lt($openTimeToday)) {
+            $closeTimeToday->addDay();
+        }
+    
+        if ($now->lt($openTimeToday)) {
+            return response()->json([
+                'message' => 'Toko belum buka! Jam buka toko adalah ' . $storeSetting->open_time
+            ], 400);
+        }
+    
+        if ($now->gt($closeTimeToday)) {
+            return response()->json([
+                'message' => 'Toko sudah tutup! Jam operasional toko adalah ' . 
+                             $storeSetting->open_time . ' - ' . $storeSetting->close_time
+            ], 400);
+        }
+    
+        $lateMinutes = 0;
+        if ($now->gt($openTimeToday)) {
+            $lateMinutes = $openTimeToday->diffInMinutes($now);
+        }
+    
+        $attendance = Attendance::create([
+            'user_id'       => $user->id,
+            'date'          => $today,
+            'check_in'      => $now->format('H:i:s'),
+            'status'        => $lateMinutes > 0 ? 'telat' : 'hadir',
+            'late_minutes'  => $lateMinutes,
+        ]);
+    
+        \Artisan::call('salary:calculate-deductions');
+    
         return response()->json([
-            'message' => 'Toko belum buka! Jam buka toko adalah ' . $storeSetting->open_time
-        ], 400);
+            'message' => 'Absensi berhasil!',
+            'data' => $attendance
+        ], 201);
     }
     
-    if ($now->gt($closeTimeToday)) {
-        return response()->json([
-            'message' => 'Toko sudah tutup! Jam operasional toko adalah ' . 
-                         $storeSetting->open_time . ' - ' . $storeSetting->close_time
-        ], 400);
-    }
-
-    // Calculate late minutes - PERBAIKAN: Balik urutan parameter untuk perhitungan yang benar
-    $lateMinutes = 0;
-    if ($now->gt($openTimeToday)) {
-        // Menggunakan openTimeToday->diffInMinutes($now) untuk mendapatkan selisih yang benar
-        $lateMinutes = $openTimeToday->diffInMinutes($now);
-    }
-
-    $attendance = Attendance::create([
-        'user_id'       => $user->id,
-        'date'          => $today,
-        'check_in'      => $now->format('H:i:s'),
-        'status'        => $lateMinutes > 0 ? 'telat' : 'hadir',
-        'late_minutes'  => $lateMinutes,
-    ]);
-
-    \Artisan::call('salary:calculate-deductions');
-
-    return response()->json([
-        'message' => 'Absensi berhasil!',
-        'data' => $attendance
-    ], 201);
-}
     // untuk tampilkan absensi
 
 public function history(Request $request)
