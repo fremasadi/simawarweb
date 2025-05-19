@@ -78,7 +78,7 @@ class OrderResource extends Resource
                     ->collapsible(false)
                     ->createItemButtonLabel('Tambah')
                     ->columns(1),
-                Forms\Components\TextInput::make('name')
+                Forms\Components\TextInput::make('name')->validationAttribute('full name')
                     ->label('Nama Pemesanan')
                     ->required()
                     ->maxLength(255)
