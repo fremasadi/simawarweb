@@ -150,7 +150,9 @@ class OrderResource extends Resource
                     ];
                 })
                 ->columnSpanFull()
-            ]);
+            ])
+            ->submitAction(null) // pastikan tidak pakai form default submit
+            ->extraAttributes(['novalidate' => true]); // ini yang penting
     }
 
     public static function table(Table $table): Table
