@@ -80,8 +80,12 @@ class OrderResource extends Resource
                     ->columns(1),
                 Forms\Components\TextInput::make('name')
                     ->label('Nama Pemesanan')
-                    ->required("Masukan")
-                    ->maxLength(255),
+                    ->required()
+                    ->maxLength(255)
+                    ->placeholder('Masukkan nama pemesanan')
+                    ->validationMessages([
+                        'required' => 'Nama pemesanan wajib diisi.',
+                    ]),                
                 Forms\Components\Textarea::make('address')
                     ->label('Alamat Pemesanan')
                     ->required()
