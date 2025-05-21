@@ -15,6 +15,7 @@ class Attendance extends Model
         'user_id',
         'date',
         'check_in',
+        'check_out',
         'status',
         'late_minutes', // Tambahkan late_minutes agar bisa diisi secara massal
     ];
