@@ -70,6 +70,8 @@ class AttendanceResource extends Resource
                     ->sortable(),
                 Tables\Columns\TextColumn::make('check_in')
                     ->label('Jam Masuk'),
+                    Tables\Columns\TextColumn::make('check_out')
+                    ->label('Jam Pulang'),
                 Tables\Columns\TextColumn::make('status'),
                 Tables\Columns\TextColumn::make('late_minutes')
                     ->label('Terlambat(menit)')
