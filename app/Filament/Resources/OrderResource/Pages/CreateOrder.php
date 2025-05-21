@@ -34,4 +34,17 @@ class CreateOrder extends CreateRecord
             logger()->error('Error kirim WA: ' . $e->getMessage());
         }
     }
+
+    protected function getFormActions(): array
+    {
+        return [
+            $this->getCreateFormAction()
+                ->label('Simpan'),
+        ];
+    }
+
+    protected function getRedirectUrl(): string
+    {
+        return $this->getResource()::getUrl('index');
+    }
 }

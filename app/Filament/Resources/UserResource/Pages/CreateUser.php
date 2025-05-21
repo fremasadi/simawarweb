@@ -41,6 +41,19 @@ class CreateUser extends CreateRecord
         }
     }
 
+    protected function getFormActions(): array
+    {
+        return [
+            $this->getCreateFormAction()
+                ->label('Simpan'),
+        ];
+    }
+
+    protected function getRedirectUrl(): string
+    {
+        return $this->getResource()::getUrl('index');
+    }
+
     /**
      * Generate gaji awal untuk user baru
      * 

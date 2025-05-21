@@ -78,14 +78,10 @@ class OrderResource extends Resource
                     ->collapsible(false)
                     ->createItemButtonLabel('Tambah')
                     ->columns(1),
-                Forms\Components\TextInput::make('name')->validationAttribute('full name')
+                Forms\Components\TextInput::make('name')
                     ->label('Nama Pemesanan')
                     ->required()
-                    ->maxLength(255)
-                    ->placeholder('Masukkan nama pemesanan')
-                    ->validationMessages([
-                        'required' => 'Nama pemesanan wajib diisi.',
-                    ]),                
+                    ->maxLength(255),
                 Forms\Components\Textarea::make('address')
                     ->label('Alamat Pemesanan')
                     ->required()
@@ -150,8 +146,7 @@ class OrderResource extends Resource
                     ];
                 })
                 ->columnSpanFull()
-            ])
-            ->extraAttributes(['novalidate' => true]); // ini yang penting
+            ]);
     }
 
     public static function table(Table $table): Table
