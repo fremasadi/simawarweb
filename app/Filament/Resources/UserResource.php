@@ -90,7 +90,7 @@ public static function getNavigationGroup(): ?string
                     ->label('Foto'),
                 Tables\Columns\TextColumn::make('role')
                     ->label('Peran'),
-                    TextColumn::make('salarysettings.name')
+                    TextColumn::make('salary_settings.name')
                     ->label('Pengaturan Gaji'),
                 // Tables\Columns\TextColumn::make('created_at')
                 //     ->dateTime()
