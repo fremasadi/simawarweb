@@ -78,14 +78,33 @@ class OrderResource extends Resource
                     ->collapsible(false)
                     ->createItemButtonLabel('Tambah')
                     ->columns(1),
+                Forms\Components\Select::make('customer_id')
+                    ->label('Pilih Customer')
+                    ->options(\App\Models\Customer::all()->pluck('name', 'id')) // Menampilkan nama customer
+                    ->searchable()
+                    ->required()
+                    ->live()
+                    ->afterStateUpdated(function ($state, \Filament\Forms\Set $set) {
+                        $customer = \App\Models\Customer::find($state);
+                        if ($customer) {
+                            $set('name', $customer->name);
+                            $set('phone', $customer->phone);
+                            $set('address', $customer->address); // Pastikan kolom `address` ada di tabel customers
+                        }
+                    }),
+                
                 Forms\Components\TextInput::make('name')
                     ->label('Nama Pemesanan')
                     ->required()
-                    ->maxLength(255),
+                    ->maxLength(255)
+                    ->disabled(), // Bikin tidak bisa diedit
+
                 Forms\Components\Textarea::make('address')
                     ->label('Alamat Pemesanan')
                     ->required()
-                    ->columnSpanFull(),
+                    ->columnSpanFull()
+                    ->disabled(), // Bikin tidak bisa diedit
+
                 Forms\Components\DateTimePicker::make('deadline')
                     ->label('Batas Waktu')
                     ->required(),
@@ -93,7 +112,9 @@ class OrderResource extends Resource
                     ->label('No.Telefon Pemesan')
                     ->tel()
                     ->required('No. Telefon Pemesan wajib diisi.')
-                    ->maxLength(255),
+                    ->maxLength(255)
+                    ->disabled(), // Bikin tidak bisa diedit
+
                 Forms\Components\TextInput::make('quantity')
                     ->label('Jumlah')
                     ->required()
