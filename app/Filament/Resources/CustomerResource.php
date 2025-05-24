@@ -19,6 +19,23 @@ class CustomerResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
+    protected static ?string $navigationLabel = 'Pemesan';
+
+    public static function getModelLabel(): string
+    {
+        return 'Pemesan';
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return 'Daftar Pemesan';
+    }
+
+
+    public static function getNavigationGroup(): ?string
+    {
+        return 'Manajemen Pesanan';
+    }
     public static function form(Form $form): Form
     {
         return $form
@@ -40,7 +57,7 @@ class CustomerResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('name')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('address')
+                Tables\Columns\TextColumn::make('phone')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('phone')
                     ->searchable(),
