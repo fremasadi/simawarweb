@@ -13,6 +13,7 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Filament\Forms\Components\Select;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use App\Models\SalarySetting;
 
 class UserResource extends Resource
 {
@@ -60,6 +61,11 @@ public static function getNavigationGroup(): ?string
                         'admin' => 'Admin',
                         'karyawan' => 'Karyawan',
                     ])
+                    ->required(),
+                    Select::make('salary_setting_id')
+                    ->label('Pengaturan Gaji')
+                    ->options(SalarySetting::all()->pluck('name', 'id'))
+                    ->searchable()
                     ->required(),
             ]);
     }
