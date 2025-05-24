@@ -89,6 +89,8 @@ public static function getNavigationGroup(): ?string
                     ->label('Foto'),
                 Tables\Columns\TextColumn::make('role')
                     ->label('Peran'),
+                    TextColumn::make('salarySetting.name')
+                    ->label('Pengaturan Gaji'),
                 // Tables\Columns\TextColumn::make('created_at')
                 //     ->dateTime()
                 //     ->sortable()

@@ -68,4 +68,11 @@ public function salaries()
 {
     return $this->hasMany(Salary::class);
 }
+
+// Di model User (atau model tempat relasi ini dipakai)
+public function salarySetting()
+{
+    return $this->belongsTo(SalarySetting::class);
+}
+
 }
