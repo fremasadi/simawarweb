@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Filament\Forms\Components\Select;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use App\Models\SalarySetting;
+use Filament\Tables\Columns\TextColumn;
 
 class UserResource extends Resource
 {
