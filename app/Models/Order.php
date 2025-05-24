@@ -47,6 +47,11 @@ class Order extends Model
         return $this->belongsTo(User::class, 'ditugaskan_ke');
     }
 
+    public function imageModels()
+{
+    return $this->belongsToMany(ImageModel::class, 'order_images');
+}
+
     protected function images(): Attribute
     {
         return Attribute::make(

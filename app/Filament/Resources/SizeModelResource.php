@@ -24,6 +24,9 @@ use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Actions;
 use Filament\Forms\Components\Actions\Action;
 use Filament\Forms\Components\Button;
+use Filament\Forms\Components\DateTimePicker;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Forms\Components\Select;
 
 class SizeModelResource extends Resource
 {
@@ -53,6 +56,23 @@ class SizeModelResource extends Resource
 {
     return $form
         ->schema([
+            Select::make('deadline')
+            ->label('Batas Waktu')
+            ->required()
+            ->options([
+                '1 hari' => '1 hari',
+                '2 hari' => '2 hari',
+                '3 hari' => '3 hari',
+                '4 hari' => '4 hari',
+                '5 hari' => '5 hari',
+                '6 hari' => '6 hari',
+                '7 hari' => '7 hari',
+                '8 hari' => '8 hari',
+                '9 hari' => '9 hari',
+                '10 hari' => '10 hari',
+            ]),
+
+
             TextInput::make('name')
                 ->label('Nama Model')
                 ->required()
@@ -156,6 +176,10 @@ class SizeModelResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('name')
                     ->searchable(),
+                    TextColumn::make('deadline')
+                    ->label('Batas Waktu')
+                    ->sortable(),
+                
                 // Tables\Columns\TextColumn::make('created_at')
                 //     ->dateTime()
                 //     ->sortable()

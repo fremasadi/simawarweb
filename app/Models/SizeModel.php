@@ -18,6 +18,7 @@ class SizeModel extends Model
     protected $fillable = [
         'name',
         'size',
+        'deadline'
     ];
 
     /**
@@ -27,6 +28,7 @@ class SizeModel extends Model
      */
     protected $casts = [
         'size' => 'array',
+
     ];
 
     // Event untuk menangani sebelum data disimpan

@@ -25,6 +25,12 @@ use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Actions\Action;
 use Filament\Forms\Components\Group;
 use Illuminate\Support\Facades\Http;
+use Carbon\Carbon;
+use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Set;
+use Filament\Forms\Components\Radio;
+use Filament\Forms\Components\ViewField;
+use Illuminate\Support\Facades\Storage;
 
 class OrderResource extends Resource
 {
@@ -55,29 +61,89 @@ class OrderResource extends Resource
         return $form
             ->schema([
                 Repeater::make('images')
-                    ->label('Foto Model')
-                    ->schema([
-                        FileUpload::make('photo')
-                            ->label('Photo')
-                            ->image()
-                            ->imagePreviewHeight('120') // Ukuran preview kecil
-                            ->imageCropAspectRatio('1:1') // Jadi persegi
-                            ->imageResizeMode('cover')
-                            ->disk('public')
-                            ->directory('order_images')
-                            ->visibility('public')
-                            ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
-                            ->enableOpen()
-                            ->previewable(true),
-                    ])
-                    ->addActionLabel('Tambah') // Tombol tambah yang bisa diklik
-                    ->columnSpanFull()
-                    ->grid(3) // Menampilkan dalam bentuk grid
-                    ->defaultItems(0) // Tidak ada data awal
-                    ->reorderable()
-                    ->collapsible(false)
-                    ->createItemButtonLabel('Tambah')
-                    ->columns(1),
+    ->label('Foto Model')
+    ->schema([
+        Radio::make('image_source')
+            ->label('Sumber Gambar')
+            ->options([
+                'existing' => 'Pilih dari Model yang Ada',
+                'upload' => 'Upload Baru'
+            ])
+            ->default('existing')
+            ->inline()
+            ->live()
+            ->columnSpanFull(),
+
+        Select::make('image_model_id')
+            ->label('Pilih Model Gambar')
+            ->options(function () {
+                return \App\Models\ImageModel::all()->mapWithKeys(function ($model) {
+                    return [$model->id => $model->name];
+                });
+            })
+            ->searchable()
+            ->preload()
+            ->visible(fn (Get $get) => $get('image_source') === 'existing')
+            ->live()
+            ->placeholder('Pilih model untuk melihat preview...')
+            ->helperText(function (Get $get) {
+                if ($get('image_model_id')) {
+                    $imageModel = \App\Models\ImageModel::find($get('image_model_id'));
+                    if ($imageModel && $imageModel->image) {
+                        $imageUrl = Storage::disk('public')->url($imageModel->image);
+                        return new \Illuminate\Support\HtmlString(
+                            '<div class="mt-2">
+                                <img src="' . $imageUrl . '" alt="' . $imageModel->name . '" 
+                                     class="w-24 h-24 object-cover rounded border" 
+                                     style="max-width: 96px; max-height: 96px;">
+                                <p class="text-xs text-gray-600 mt-1">Preview: ' . $imageModel->name . '</p>
+                            </div>'
+                        );
+                    }
+                }
+                return 'Pilih model untuk melihat preview gambar';
+            })
+            ->afterStateUpdated(function ($state, Set $set) {
+                if ($state) {
+                    $imageModel = \App\Models\ImageModel::find($state);
+                    if ($imageModel && $imageModel->image) {
+                        $set('selected_image_path', $imageModel->image);
+                        $set('photo', null);
+                    }
+                }
+            }),
+
+        FileUpload::make('photo')
+            ->label('Upload Foto')
+            ->image()
+            ->imagePreviewHeight('120')
+            ->imageCropAspectRatio('1:1')
+            ->imageResizeMode('cover')
+            ->disk('public')
+            ->directory('order_images')
+            ->visibility('public')
+            ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
+            ->enableOpen()
+            ->previewable(true)
+            ->visible(fn (Get $get) => $get('image_source') === 'upload')
+            ->live()
+            ->afterStateUpdated(function ($state, Set $set) {
+                if ($state) {
+                    $set('image_model_id', null);
+                    $set('selected_image_path', null);
+                }
+            }),
+
+        \Filament\Forms\Components\Hidden::make('selected_image_path'),
+    ])
+    ->addActionLabel('Tambah Gambar')
+    ->columnSpanFull()
+    ->grid(2)
+    ->defaultItems(0)
+    ->reorderable()
+    ->collapsible(false)
+    ->createItemButtonLabel('Tambah Gambar')
+    ->columns(1),
                 Forms\Components\Select::make('customer_id')
                     ->label('Pilih Customer')
                     ->options(\App\Models\Customer::all()->pluck('name', 'id')) // Menampilkan nama customer
@@ -104,10 +170,6 @@ class OrderResource extends Resource
                     ->required()
                     ->columnSpanFull()
                     ->disabled(), // Bikin tidak bisa diedit
-
-                Forms\Components\DateTimePicker::make('deadline')
-                    ->label('Batas Waktu')
-                    ->required(),
                 Forms\Components\TextInput::make('phone')
                     ->label('No.Telefon Pemesan')
                     ->tel()
@@ -115,22 +177,70 @@ class OrderResource extends Resource
                     ->maxLength(255)
                     ->disabled(), // Bikin tidak bisa diedit
 
-                Forms\Components\TextInput::make('quantity')
-                    ->label('Jumlah')
-                    ->required()
-                    ->numeric(),
-                Forms\Components\Select::make('sizemodel_id')
+                Select::make('sizemodel_id')
                     ->label('Pilih Model Ukuran')
-                    ->options(\App\Models\SizeModel::pluck('name', 'id')) // Ambil data dari tabel size_models
+                    ->options(\App\Models\SizeModel::pluck('name', 'id'))
                     ->required()
-                    ->live() // Aktifkan live update
-                    ->afterStateUpdated(function ($state, Forms\Set $set) {
-                        // Ambil data ukuran berdasarkan sizemodel_id yang dipilih
+                    ->live()
+                    ->afterStateUpdated(function ($state, Set $set, Get $get) {
+                        if (!$state) return;
+                        
                         $sizeModel = \App\Models\SizeModel::find($state);
-                        if ($sizeModel) {
-                            $set('size', $sizeModel->size); // Set nilai size ke form
+                        $quantity = (int) $get('quantity') ?: 1;
+
+                        if ($sizeModel && $sizeModel->deadline) {
+                            // Ambil angka dari string deadline (misal "3 hari" -> 3)
+                            preg_match('/(\d+)/', $sizeModel->deadline, $matches);
+                            $baseDays = (int) ($matches[1] ?? 1);
+
+                            // Hitung total hari berdasarkan quantity
+                            $totalDays = $baseDays * $quantity;
+                            
+                            // Set deadline dari tanggal sekarang + total hari
+                            $newDeadline = Carbon::now()->addDays($totalDays);
+
+                            $set('deadline', $newDeadline->format('Y-m-d H:i:s'));
+                            
+                            // Set size jika diperlukan
+                            if (isset($sizeModel->size)) {
+                                $set('size', $sizeModel->size);
+                            }
                         }
                     }),
+
+                TextInput::make('quantity')
+                    ->label('Jumlah')
+                    ->numeric()
+                    ->default(1)
+                    ->required()
+                    ->live()
+                    ->afterStateUpdated(function ($state, Set $set, Get $get) {
+                        $sizeModelId = $get('sizemodel_id');
+                        if (!$sizeModelId) return;
+                        
+                        $sizeModel = \App\Models\SizeModel::find($sizeModelId);
+                        $quantity = (int) $state ?: 1;
+
+                        if ($sizeModel && $sizeModel->deadline) {
+                            // Ambil angka dari string deadline
+                            preg_match('/(\d+)/', $sizeModel->deadline, $matches);
+                            $baseDays = (int) ($matches[1] ?? 1);
+
+                            // Hitung ulang deadline berdasarkan quantity baru
+                            $totalDays = $baseDays * $quantity;
+                            $newDeadline = Carbon::now()->addDays($totalDays);
+
+                            $set('deadline', $newDeadline->format('Y-m-d H:i:s'));
+                        }
+                    }),
+
+                DateTimePicker::make('deadline')
+                    ->label('Batas Waktu')
+                    ->required()
+                    ->displayFormat('d/m/Y H:i')
+                    ->format('Y-m-d H:i:s'),
+                
+                
 
                 // Section untuk menampilkan field ukuran dinamis
                 Section::make('Ukuran')
