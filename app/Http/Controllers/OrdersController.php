@@ -240,5 +240,48 @@ class OrdersController extends Controller
         'data' => $formattedOrders
     ]);
 }
+public function completeOrder(Request $request, $id)
+{
+    $user = $request->user();
+
+    $order = Order::where('id', $id)
+        ->where('ditugaskan_ke', $user->id)
+        ->where('status', 'dikerjakan')
+        ->first();
+
+    if (!$order) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Order tidak ditemukan atau tidak sedang dikerjakan oleh Anda.'
+        ], 404);
+    }
+
+    $order->status = 'selesai';
+    $order->save();
+
+    // Kirim WA lewat Fonnte
+    try {
+        $response = Http::withHeaders([
+            'Authorization' => 'R5uHqhjeppTQbDefuzxY', // Ganti token sesuai
+        ])->post('https://api.fonnte.com/send', [
+            'target' => $order->phone,
+            'message' => "Pesanan Anda di Rumah Jahit Mawar telah selesai dan sudah bisa diambil. Terima kasih atas kepercayaan Anda!",
+            'countryCode' => '62',
+        ]);
+
+        if ($response->failed()) {
+            logger()->error('Gagal kirim WA (selesai): ' . $response->body());
+        }
+    } catch (\Exception $e) {
+        logger()->error('Error kirim WA (selesai): ' . $e->getMessage());
+    }
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Pesanan berhasil diselesaikan.',
+        'data' => $order,
+    ]);
+}
+
 
 }

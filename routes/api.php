@@ -19,6 +19,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/orders/ongoing', [OrdersController::class, 'getOngoingOrders']); // ✅ Pastikan pakai OrdersController
     Route::get('/orders/completed/count', [OrdersController::class, 'countCompletedOrders']);
     Route::get('/orders/completed', [OrdersController::class, 'getCompletedOrders']);
+    Route::post('/orders/{id}/complete', [OrdersController::class, 'completeOrder']);
 
     Route::get('/user/profile', [UserController::class, 'getUserProfile']);
 

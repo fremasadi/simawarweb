@@ -329,32 +329,7 @@ class OrderResource extends Resource
                 Tables\Actions\EditAction::make(),
 
                 // Tombol "Selesai" hanya muncul jika statusnya "dikerjakan"
-                Tables\Actions\Action::make('selesai')
-                    ->label('Selesai')
-                    ->icon('heroicon-o-check-circle') // Ikon centang
-                    ->color('success') // Warna hijau
-                    ->visible(fn ($record) => $record->status === 'dikerjakan') // Hanya tampil jika status "dikerjakan"
-                    ->action(function ($record) {
-                        $record->update(['status' => 'selesai']);
-
-                        // Kirim WA lewat Fonnte
-                        try {
-                            $response = Http::withHeaders([
-                                'Authorization' => 'R5uHqhjeppTQbDefuzxY', // Ganti token sesuai
-                            ])->post('https://api.fonnte.com/send', [
-                                'target' => $record->phone,
-                                'message' => "Pesanan Anda di Rumah Jahit Mawar telah selesai dan sudah bisa diambil. Terima kasih atas kepercayaan Anda!",
-                                'countryCode' => '62',
-                            ]);
-
-                            if ($response->failed()) {
-                                logger()->error('Gagal kirim WA (selesai): ' . $response->body());
-                            }
-                        } catch (\Exception $e) {
-                            logger()->error('Error kirim WA (selesai): ' . $e->getMessage());
-                        }
-                    })
-                    ->requiresConfirmation() // Konfirmasi sebelum update
+                
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
