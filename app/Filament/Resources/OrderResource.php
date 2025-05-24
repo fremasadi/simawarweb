@@ -234,11 +234,13 @@ class OrderResource extends Resource
                         }
                     }),
 
-                DateTimePicker::make('deadline')
+                    DateTimePicker::make('deadline')
                     ->label('Batas Waktu')
                     ->required()
                     ->displayFormat('d/m/Y H:i')
-                    ->format('Y-m-d H:i:s'),
+                    ->format('Y-m-d H:i:s')
+                    ->disabled(),  // atau ->readonly()
+                
                 
                 
 
