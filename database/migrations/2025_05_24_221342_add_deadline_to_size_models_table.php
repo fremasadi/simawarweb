@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('size_models', function (Blueprint $table) {
-            //
+            $table->string('deadline')->nullable()->after('size');
         });
     }
 
