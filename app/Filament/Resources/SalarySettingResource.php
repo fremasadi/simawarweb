@@ -44,10 +44,10 @@ class SalarySettingResource extends Resource
     {
         return $form
             ->schema([
-                // TextInput::make('name')
-                // ->label('Nama Setting Gaji')
-                // ->required()
-                // ->maxLength(255),
+                TextInput::make('name')
+                ->label('Nama Setting Gaji')
+                ->required()
+                ->maxLength(255),
 
             TextInput::make('salary')
                 ->label('Gaji Pokok')
@@ -56,14 +56,14 @@ class SalarySettingResource extends Resource
                 ->prefix('Rp')
                 ->rules(['min:0']),
 
-            // Select::make('periode')
-            //     ->label('Periode Penggajian')
-            //     ->options([
-            //         'daily' => 'Harian',
-            //         'weekly' => 'Mingguan',
-            //         'monthly' => 'Bulanan',
-            //     ])
-            //     ->required(),
+            Select::make('periode')
+                ->label('Periode Penggajian')
+                ->options([
+                    'daily' => 'Harian',
+                    'weekly' => 'Mingguan',
+                    'monthly' => 'Bulanan',
+                ])
+                ->required(),
 
             TextInput::make('reduction_if_absent')
                 ->label('Potongan Jika Tidak Hadir')
@@ -92,15 +92,15 @@ class SalarySettingResource extends Resource
     {
         return $table
             ->columns([
-                // Tables\Columns\TextColumn::make('name')
-                //     ->label('Nama Setting Gaji')
-                //     ->searchable(),
+                Tables\Columns\TextColumn::make('name')
+                    ->label('Nama Setting Gaji')
+                    ->searchable(),
                 Tables\Columns\TextColumn::make('salary')
                     ->label('Gaji Pokok')
                     ->numeric()
                     ->sortable(),
-                // Tables\Columns\TextColumn::make('periode')
-                //     ->label('Periode Penggajian'),
+                Tables\Columns\TextColumn::make('periode')
+                    ->label('Periode Penggajian'),
                 Tables\Columns\TextColumn::make('reduction_if_absent')
                     ->label('Potongan Jika Tidak Hadir')
                     ->numeric()
