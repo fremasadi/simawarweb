@@ -46,24 +46,21 @@ class AttendanceController extends Controller
 
         $earlyCheckInTime = $openTimeToday->copy()->subMinutes(15);
 
-        if ($now->lt($earlyCheckInTime)) {
-            return response()->json([
-                'message' => 'Belum bisa absen! Absensi hanya diperbolehkan mulai 15 menit sebelum toko buka (' . $earlyCheckInTime->format('H:i') . ')',
-            ], 400);
-        }
+// Cegah absen terlalu awal
+if ($now->lt($earlyCheckInTime)) {
+    return response()->json([
+        'message' => 'Belum bisa absen! Absensi hanya diperbolehkan mulai 15 menit sebelum toko buka (' . $earlyCheckInTime->format('H:i') . ')',
+    ], 400);
+}
 
-        if ($now->lt($openTimeToday)) {
-            return response()->json([
-                'message' => 'Toko belum buka! Jam buka toko adalah ' . $storeSetting->open_time
-            ], 400);
-        }
-    
-        if ($now->gt($closeTimeToday)) {
-            return response()->json([
-                'message' => 'Toko sudah tutup! Jam operasional toko adalah ' .
-                    $storeSetting->open_time . ' - ' . $storeSetting->close_time
-            ], 400);
-        }
+// Cegah absen setelah toko tutup
+if ($now->gt($closeTimeToday)) {
+    return response()->json([
+        'message' => 'Toko sudah tutup! Jam operasional toko adalah ' .
+            $storeSetting->open_time . ' - ' . $storeSetting->close_time,
+    ], 400);
+}
+
     
         // Jika sudah absen masuk, tapi belum check out → check out
         if ($attendance) {
