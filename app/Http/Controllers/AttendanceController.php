@@ -39,11 +39,19 @@ class AttendanceController extends Controller
     
         $openTimeToday = Carbon::parse($today . ' ' . $storeSetting->open_time);
         $closeTimeToday = Carbon::parse($today . ' ' . $storeSetting->close_time);
-    
+
         if ($closeTimeToday->lt($openTimeToday)) {
             $closeTimeToday->addDay();
         }
-    
+
+        $earlyCheckInTime = $openTimeToday->copy()->subMinutes(15);
+
+        if ($now->lt($earlyCheckInTime)) {
+            return response()->json([
+                'message' => 'Belum bisa absen! Absensi hanya diperbolehkan mulai 15 menit sebelum toko buka (' . $earlyCheckInTime->format('H:i') . ')',
+            ], 400);
+        }
+
         if ($now->lt($openTimeToday)) {
             return response()->json([
                 'message' => 'Toko belum buka! Jam buka toko adalah ' . $storeSetting->open_time
@@ -79,6 +87,7 @@ class AttendanceController extends Controller
         if ($now->gt($openTimeToday)) {
             $lateMinutes = $openTimeToday->diffInMinutes($now);
         }
+
     
         $attendance = Attendance::create([
             'user_id'       => $user->id,
