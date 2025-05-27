@@ -239,7 +239,7 @@ class OrderResource extends Resource
                     ->required()
                     ->displayFormat('d/m/Y H:i')
                     ->format('Y-m-d H:i:s')
-                    ->disabled(),  // atau ->readonly()
+                    ->readonly(), // ubah dari ->disabled() menjadi ->readonly()
                 
                 
                 
