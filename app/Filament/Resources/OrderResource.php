@@ -163,19 +163,19 @@ class OrderResource extends Resource
                     ->label('Nama Pemesanan')
                     ->required()
                     ->maxLength(255)
-                    ->disabled(), // Bikin tidak bisa diedit
+                    ->readonly(), // ubah dari ->disabled() menjadi ->readonly()
 
                 Forms\Components\Textarea::make('address')
                     ->label('Alamat Pemesanan')
                     ->required()
                     ->columnSpanFull()
-                    ->disabled(), // Bikin tidak bisa diedit
-                Forms\Components\TextInput::make('phone')
+                    ->readonly(), // ubah dari ->disabled() menjadi ->readonly()
+                    Forms\Components\TextInput::make('phone')
                     ->label('No.Telefon Pemesan')
                     ->tel()
                     ->required('No. Telefon Pemesan wajib diisi.')
                     ->maxLength(255)
-                    ->disabled(), // Bikin tidak bisa diedit
+                    ->readonly(), // ubah dari ->disabled() menjadi ->readonly()
 
                 Select::make('sizemodel_id')
                     ->label('Pilih Model Ukuran')
