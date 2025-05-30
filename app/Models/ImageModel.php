@@ -14,6 +14,7 @@ class ImageModel extends Model
     protected $fillable = [
         'name',
         'image',
+        'price'
     ];
 
     public function getImageUrlAttribute()

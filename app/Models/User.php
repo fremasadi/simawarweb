@@ -74,5 +74,9 @@ public function salarySetting()
 {
     return $this->belongsTo(SalarySetting::class);
 }
+public function orders()
+{
+    return $this->hasMany(Order::class, 'ditugaskan_ke');
+}
 
 }

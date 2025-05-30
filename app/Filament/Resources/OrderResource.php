@@ -92,12 +92,61 @@ class OrderResource extends Resource
                     if ($imageModel && $imageModel->image) {
                         $imageUrl = Storage::disk('public')->url($imageModel->image);
                         return new \Illuminate\Support\HtmlString(
-                            '<div class="mt-2">
+                            '<div class="mt-2 flex items-center gap-3">
                                 <img src="' . $imageUrl . '" alt="' . $imageModel->name . '" 
                                      class="w-24 h-24 object-cover rounded border" 
                                      style="max-width: 96px; max-height: 96px;">
-                                <p class="text-xs text-gray-600 mt-1">Preview: ' . $imageModel->name . '</p>
-                            </div>'
+                                <div class="flex flex-col gap-2">
+                                    <p class="text-xs text-gray-600">Preview: ' . $imageModel->name . '</p>
+                                    <button type="button" 
+                                            onclick="openImageModal(\'' . $imageUrl . '\', \'' . $imageModel->name . '\')"
+                                            class="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">
+                                        Lihat Lebih Besar
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Modal untuk preview gambar besar -->
+                            <div id="imageModal" class="fixed inset-0 bg-black bg-opacity-75 z-50 hidden items-center justify-center" 
+                                 onclick="closeImageModal()" style="z-index: 9999;">
+                                <div class="relative max-w-4xl max-h-[90vh] p-4" onclick="event.stopPropagation()">
+                                    <button onclick="closeImageModal()" 
+                                            class="absolute -top-2 -right-2 bg-white rounded-full w-8 h-8 flex items-center justify-center text-black hover:bg-gray-200 z-10">
+                                        ×
+                                    </button>
+                                    <img id="modalImage" src="" alt="" class="max-w-full max-h-full object-contain rounded">
+                                    <p id="modalTitle" class="text-white text-center mt-2 font-medium"></p>
+                                </div>
+                            </div>
+                            
+                            <script>
+                                function openImageModal(imageUrl, imageName) {
+                                    const modal = document.getElementById("imageModal");
+                                    const modalImage = document.getElementById("modalImage");
+                                    const modalTitle = document.getElementById("modalTitle");
+                                    
+                                    modalImage.src = imageUrl;
+                                    modalImage.alt = imageName;
+                                    modalTitle.textContent = imageName;
+                                    modal.classList.remove("hidden");
+                                    modal.classList.add("flex");
+                                    document.body.style.overflow = "hidden";
+                                }
+                                
+                                function closeImageModal() {
+                                    const modal = document.getElementById("imageModal");
+                                    modal.classList.add("hidden");
+                                    modal.classList.remove("flex");
+                                    document.body.style.overflow = "auto";
+                                }
+                                
+                                // Close modal dengan ESC key
+                                document.addEventListener("keydown", function(event) {
+                                    if (event.key === "Escape") {
+                                        closeImageModal();
+                                    }
+                                });
+                            </script>'
                         );
                     }
                 }
@@ -170,12 +219,30 @@ class OrderResource extends Resource
                     ->required()
                     ->columnSpanFull()
                     ->readonly(), // ubah dari ->disabled() menjadi ->readonly()
+
                     Forms\Components\TextInput::make('phone')
                     ->label('No.Telefon Pemesan')
                     ->tel()
                     ->required('No. Telefon Pemesan wajib diisi.')
                     ->maxLength(255)
                     ->readonly(), // ubah dari ->disabled() menjadi ->readonly()
+
+                    Select::make('ditugaskan_ke')
+    ->label('Ditugaskan Ke')
+    ->relationship(
+        name: 'user',
+        titleAttribute: 'name',
+        modifyQueryUsing: fn (Builder $query) => $query
+            ->where('role', 'karyawan')
+            ->whereDoesntHave('orders', function (Builder $subQuery) {
+                $subQuery->where('status', 'dikerjakan');
+            }),
+    )
+    ->searchable()
+    ->preload()
+    ->required(),
+                
+
 
                 Select::make('sizemodel_id')
                     ->label('Pilih Model Ukuran')
@@ -234,14 +301,17 @@ class OrderResource extends Resource
                         }
                     }),
 
-                    DateTimePicker::make('deadline')
+                DateTimePicker::make('deadline')
                     ->label('Batas Waktu')
                     ->required()
                     ->displayFormat('d/m/Y H:i')
                     ->format('Y-m-d H:i:s')
                     ->readonly(), // ubah dari ->disabled() menjadi ->readonly()
-                
-                
+                Forms\Components\TextInput::make('price')
+                    ->label('Harga')
+                    ->tel()
+                    ->required('Harga wajib diisi.')
+                    ->maxLength(255),                
                 
 
                 // Section untuk menampilkan field ukuran dinamis
@@ -293,19 +363,23 @@ class OrderResource extends Resource
                     ->label('Batas Waktu') // Menambahkan label
                     ->dateTime()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('phone')
-                    ->label('Nomor Telepon') // Menambahkan label
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('quantity')
-                    ->label('Jumlah') // Menambahkan label
-                    ->numeric()
-                    ->sortable(),
                 Tables\Columns\TextColumn::make('status')
-                    ->label('Status') // Menambahkan label
+                    ->label('Status')
+                    ->sortable()
                     ->searchable(),
-                Tables\Columns\TextColumn::make('sizeModel.name') // Mengambil name dari relasi
-                    ->label('Model Ukuran') // Ubah label kolom ke bahasa Indonesia
-                    ->sortable(),
+                
+                // Tables\Columns\TextColumn::make('phone')
+                //     ->label('Nomor Telepon') // Menambahkan label
+                //     ->searchable(),
+                // Tables\Columns\TextColumn::make('quantity')
+                //     ->label('Jumlah') // Menambahkan label
+                //     ->numeric()
+                //     ->sortable(),
+                    
+                
+                // Tables\Columns\TextColumn::make('sizeModel.name') // Mengambil name dari relasi
+                //     ->label('Model Ukuran') // Ubah label kolom ke bahasa Indonesia
+                //     ->sortable(),
                 Tables\Columns\TextColumn::make('user.name') // Mengambil nama dari relasi user
                     ->label('Ditugaskan Ke')
                     ->sortable()
@@ -326,7 +400,7 @@ class OrderResource extends Resource
                 //
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
+                // Tables\Actions\EditAction::make(),
 
                 // Tombol "Selesai" hanya muncul jika statusnya "dikerjakan"
                 

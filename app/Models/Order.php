@@ -16,6 +16,7 @@ class Order extends Model
         'deadline',
         'phone',
         'quantity',
+        'price',
         'sizemodel_id',
         'size',
         'status',
@@ -24,7 +25,7 @@ class Order extends Model
     ];
 
     protected $attributes = [
-        'status' => 'ditugaskan',
+        'status' => 'dikerjakan',
     ];
 
     protected $casts = [
