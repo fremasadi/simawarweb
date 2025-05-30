@@ -194,7 +194,18 @@ class OrderResource extends Resource
                     ->required('No. Telefon Pemesan wajib diisi.')
                     ->maxLength(255)
                     ->readonly(), // ubah dari ->disabled() menjadi ->readonly()
-
+                    MultiSelect::make('accessories_list')
+                    ->label('Pilih Accessories')
+                    ->options(function () {
+                        return Accessory::all()->pluck('name', 'id')->toArray();
+                    })
+                    ->placeholder('Pilih accessories')
+                    ->searchable()
+                    ->helperText('Pilih satu atau lebih accessories yang terkait dengan order'),
+                
+                Forms\Components\TextInput::make('description')
+                    ->label('Deskripsi')
+                    ->maxLength(255),
                     Select::make('ditugaskan_ke')
     ->label('Ditugaskan Ke')
     ->relationship(

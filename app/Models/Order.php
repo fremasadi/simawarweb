@@ -22,6 +22,8 @@ class Order extends Model
         'status',
         'ditugaskan_ke',
         'images',
+        'description',
+        'accessories_list',
     ];
 
     protected $attributes = [
@@ -31,6 +33,8 @@ class Order extends Model
     protected $casts = [
         'size' => 'array',
         'images' => 'array',
+        'accessories_list' => 'array',
+
     ];
 
     public function sizeModel()
