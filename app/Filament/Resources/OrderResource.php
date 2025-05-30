@@ -113,17 +113,18 @@ class OrderResource extends Resource
                             <p class="text-center text-sm text-gray-600 mt-2 font-medium">
                                 Estimasi Harga: Rp ' . number_format($imageModel->estimasi_price ?? 0, 0, ',', '.') . '
                             </p>
-                            <div class="flex justify-center mt-3 gap-2">
-                                <a href="' . $imageUrl . '" target="_blank" 
-                                   class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors text-sm no-underline">
-                                    Buka di Tab Baru
-                                </a>
-                                <button type="button" 
-                                        onclick="navigator.clipboard.writeText(\'' . $imageUrl . '\'); alert(\'URL gambar disalin!\')"
-                                        class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors text-sm">
-                                    Salin URL
-                                </button>
-                            </div>
+                            <div class="flex flex-col items-center mt-3 space-y-1">
+                            <a href="' . $imageUrl . '" target="_blank" 
+                            class="text-sm text-blue-600 hover:underline">
+                                Buka di Tab Baru
+                            </a>
+                            <button type="button" 
+                                    onclick="navigator.clipboard.writeText(\'' . $imageUrl . '\'); alert(\'URL gambar disalin!\')"
+                                    class="text-sm text-gray-600 hover:underline bg-transparent border-none p-0">
+                                Salin URL
+                            </button>
+                        </div>
+
                         </div>
                     </div>'
                 );
