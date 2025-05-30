@@ -94,59 +94,18 @@ class OrderResource extends Resource
                         return new \Illuminate\Support\HtmlString(
                             '<div class="mt-2 flex items-center gap-3">
                                 <img src="' . $imageUrl . '" alt="' . $imageModel->name . '" 
-                                     class="w-24 h-24 object-cover rounded border" 
+                                     class="w-24 h-24 object-cover rounded border cursor-pointer hover:opacity-80 transition-opacity" 
+                                     onclick="this.requestFullscreen ? this.requestFullscreen() : null"
+                                     title="Klik untuk fullscreen"
                                      style="max-width: 96px; max-height: 96px;">
                                 <div class="flex flex-col gap-2">
                                     <p class="text-xs text-gray-600">Preview: ' . $imageModel->name . '</p>
-                                    <button type="button" 
-                                            onclick="openImageModal(\'' . $imageUrl . '\', \'' . $imageModel->name . '\')"
-                                            class="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">
+                                    <a href="' . $imageUrl . '" target="_blank" 
+                                       class="inline-block px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors text-center no-underline">
                                         Lihat Lebih Besar
-                                    </button>
+                                    </a>
                                 </div>
-                            </div>
-                            
-                            <!-- Modal untuk preview gambar besar -->
-                            <div id="imageModal" class="fixed inset-0 bg-black bg-opacity-75 z-50 hidden items-center justify-center" 
-                                 onclick="closeImageModal()" style="z-index: 9999;">
-                                <div class="relative max-w-4xl max-h-[90vh] p-4" onclick="event.stopPropagation()">
-                                    <button onclick="closeImageModal()" 
-                                            class="absolute -top-2 -right-2 bg-white rounded-full w-8 h-8 flex items-center justify-center text-black hover:bg-gray-200 z-10">
-                                        ×
-                                    </button>
-                                    <img id="modalImage" src="" alt="" class="max-w-full max-h-full object-contain rounded">
-                                    <p id="modalTitle" class="text-white text-center mt-2 font-medium"></p>
-                                </div>
-                            </div>
-                            
-                            <script>
-                                function openImageModal(imageUrl, imageName) {
-                                    const modal = document.getElementById("imageModal");
-                                    const modalImage = document.getElementById("modalImage");
-                                    const modalTitle = document.getElementById("modalTitle");
-                                    
-                                    modalImage.src = imageUrl;
-                                    modalImage.alt = imageName;
-                                    modalTitle.textContent = imageName;
-                                    modal.classList.remove("hidden");
-                                    modal.classList.add("flex");
-                                    document.body.style.overflow = "hidden";
-                                }
-                                
-                                function closeImageModal() {
-                                    const modal = document.getElementById("imageModal");
-                                    modal.classList.add("hidden");
-                                    modal.classList.remove("flex");
-                                    document.body.style.overflow = "auto";
-                                }
-                                
-                                // Close modal dengan ESC key
-                                document.addEventListener("keydown", function(event) {
-                                    if (event.key === "Escape") {
-                                        closeImageModal();
-                                    }
-                                });
-                            </script>'
+                            </div>'
                         );
                     }
                 }
@@ -160,6 +119,40 @@ class OrderResource extends Resource
                         $set('photo', null);
                     }
                 }
+            }),
+
+        // Alternative: Tambahkan field khusus untuk preview yang lebih besar
+        \Filament\Forms\Components\Placeholder::make('image_preview')
+            ->label('Preview Gambar')
+            ->visible(fn (Get $get) => $get('image_source') === 'existing' && $get('image_model_id'))
+            ->content(function (Get $get) {
+                if ($get('image_model_id')) {
+                    $imageModel = \App\Models\ImageModel::find($get('image_model_id'));
+                    if ($imageModel && $imageModel->image) {
+                        $imageUrl = Storage::disk('public')->url($imageModel->image);
+                        return new \Illuminate\Support\HtmlString(
+                            '<div class="space-y-3">
+                                <div class="border rounded-lg p-4 bg-gray-50">
+                                    <img src="' . $imageUrl . '" alt="' . $imageModel->name . '" 
+                                         class="w-full max-w-md mx-auto rounded border shadow-sm">
+                                    <p class="text-center text-sm text-gray-600 mt-2 font-medium">' . $imageModel->name . '</p>
+                                    <div class="flex justify-center mt-3 gap-2">
+                                        <a href="' . $imageUrl . '" target="_blank" 
+                                           class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors text-sm no-underline">
+                                            Buka di Tab Baru
+                                        </a>
+                                        <button type="button" 
+                                                onclick="navigator.clipboard.writeText(\'' . $imageUrl . '\'); alert(\'URL gambar disalin!\')"
+                                                class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors text-sm">
+                                            Salin URL
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>'
+                        );
+                    }
+                }
+                return '';
             }),
 
         FileUpload::make('photo')
