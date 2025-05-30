@@ -197,13 +197,16 @@ class OrderResource extends Resource
                     ->maxLength(255)
                     ->readonly(), // ubah dari ->disabled() menjadi ->readonly()
                     MultiSelect::make('accessories_list')
-                    ->label('Pilih Accessories')
-                    ->options(function () {
-                        return Accessory::all()->pluck('name', 'id')->toArray();
-                    })
-                    ->placeholder('Pilih accessories')
-                    ->searchable()
-                    ->helperText('Pilih satu atau lebih accessories yang terkait dengan order'),
+    ->label('Pilih Accessories')
+    ->options(function () {
+        return Accessory::all()->mapWithKeys(function ($item) {
+            return [$item->id => $item->name . ' (Rp ' . number_format($item->price, 0, ',', '.') . ')'];
+        })->toArray();
+    })
+    ->placeholder('Pilih accessories')
+    ->searchable()
+    ->helperText('Pilih satu atau lebih accessories yang terkait dengan order'),
+
                 
                 Forms\Components\TextInput::make('description')
                     ->label('Deskripsi')
