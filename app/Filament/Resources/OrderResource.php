@@ -98,37 +98,40 @@ class OrderResource extends Resource
 
         // Alternative: Tambahkan field khusus untuk preview yang lebih besar
         \Filament\Forms\Components\Placeholder::make('image_preview')
-            ->label('Preview Gambar')
-            ->visible(fn (Get $get) => $get('image_source') === 'existing' && $get('image_model_id'))
-            ->content(function (Get $get) {
-                if ($get('image_model_id')) {
-                    $imageModel = \App\Models\ImageModel::find($get('image_model_id'));
-                    if ($imageModel && $imageModel->image) {
-                        $imageUrl = Storage::disk('public')->url($imageModel->image);
-                        return new \Illuminate\Support\HtmlString(
-                            '<div class="space-y-3">
-                                <div class="border rounded-lg p-4 bg-gray-50">
-                                    <img src="' . $imageUrl . '" alt="' . $imageModel->name . '" 
-                                         class="w-full max-w-md mx-auto rounded border shadow-sm">
-                                    <p class="text-center text-sm text-gray-600 mt-2 font-medium">' . $imageModel->price . '</p>
-                                    <div class="flex justify-center mt-3 gap-2">
-                                        <a href="' . $imageUrl . '" target="_blank" 
-                                           class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors text-sm no-underline">
-                                            Buka di Tab Baru
-                                        </a>
-                                        <button type="button" 
-                                                onclick="navigator.clipboard.writeText(\'' . $imageUrl . '\'); alert(\'URL gambar disalin!\')"
-                                                class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors text-sm">
-                                            Salin URL
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>'
-                        );
-                    }
-                }
-                return '';
-            }),
+    ->label('Preview Gambar')
+    ->visible(fn (Get $get) => $get('image_source') === 'existing' && $get('image_model_id'))
+    ->content(function (Get $get) {
+        if ($get('image_model_id')) {
+            $imageModel = \App\Models\ImageModel::find($get('image_model_id'));
+            if ($imageModel && $imageModel->image) {
+                $imageUrl = Storage::disk('public')->url($imageModel->image);
+                return new \Illuminate\Support\HtmlString(
+                    '<div class="space-y-3" style="overflow: visible;">
+                        <div class="border rounded-lg p-4 bg-gray-50">
+                            <img src="' . $imageUrl . '" alt="' . $imageModel->name . '" 
+                                 class="w-full max-w-md mx-auto rounded border shadow-sm">
+                            <p class="text-center text-sm text-gray-600 mt-2 font-medium">
+                                Estimasi Harga: Rp ' . number_format($imageModel->estimasi_price ?? 0, 0, ',', '.') . '
+                            </p>
+                            <div class="flex justify-center mt-3 gap-2">
+                                <a href="' . $imageUrl . '" target="_blank" 
+                                   class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors text-sm no-underline">
+                                    Buka di Tab Baru
+                                </a>
+                                <button type="button" 
+                                        onclick="navigator.clipboard.writeText(\'' . $imageUrl . '\'); alert(\'URL gambar disalin!\')"
+                                        class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors text-sm">
+                                    Salin URL
+                                </button>
+                            </div>
+                        </div>
+                    </div>'
+                );
+            }
+        }
+        return '';
+    }),
+
 
         FileUpload::make('photo')
             ->label('Upload Foto')
