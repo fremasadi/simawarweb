@@ -31,6 +31,7 @@ use Filament\Forms\Set;
 use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\ViewField;
 use Illuminate\Support\Facades\Storage;
+use Filament\Forms\Components\MultiSelect;
 
 class OrderResource extends Resource
 {
