@@ -111,18 +111,14 @@ class OrderResource extends Resource
                             <img src="' . $imageUrl . '" alt="' . $imageModel->name . '" 
                                  class="w-full max-w-md mx-auto rounded border shadow-sm">
                             <p class="text-center text-sm text-gray-600 mt-2 font-medium">
-                                Estimasi Harga: Rp ' . number_format($imageModel->estimasi_price ?? 0, 0, ',', '.') . '
+                                Estimasi Harga: Rp ' . number_format($imageModel->price ?? 0, 0, ',', '.') . '
                             </p>
                             <div class="flex flex-col items-center mt-3 space-y-1">
                             <a href="' . $imageUrl . '" target="_blank" 
                             class="text-sm text-blue-600 hover:underline">
                                 Buka di Tab Baru
                             </a>
-                            <button type="button" 
-                                    onclick="navigator.clipboard.writeText(\'' . $imageUrl . '\'); alert(\'URL gambar disalin!\')"
-                                    class="text-sm text-gray-600 hover:underline bg-transparent border-none p-0">
-                                Salin URL
-                            </button>
+                            
                         </div>
 
                         </div>
