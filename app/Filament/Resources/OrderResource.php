@@ -86,72 +86,6 @@ class OrderResource extends Resource
             ->visible(fn (Get $get) => $get('image_source') === 'existing')
             ->live()
             ->placeholder('Pilih model untuk melihat preview...')
-            ->helperText(function (Get $get) {
-                if ($get('image_model_id')) {
-                    $imageModel = \App\Models\ImageModel::find($get('image_model_id'));
-                    if ($imageModel && $imageModel->image) {
-                        $imageUrl = Storage::disk('public')->url($imageModel->image);
-                        return new \Illuminate\Support\HtmlString(
-                            '<div class="mt-2" x-data="{ showModal: false }">
-                                <div class="flex items-center gap-3">
-                                    <img src="' . $imageUrl . '" alt="' . $imageModel->name . '" 
-                                         class="w-24 h-24 object-cover rounded border cursor-pointer hover:opacity-80 transition-opacity" 
-                                         @click="showModal = true"
-                                         style="max-width: 96px; max-height: 96px;">
-                                    <div class="flex flex-col gap-2">
-                                        <p class="text-xs text-gray-600">Preview: ' . $imageModel->name . '</p>
-                                        <button type="button" @click="showModal = true"
-                                               class="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">
-                                            Lihat Lebih Besar
-                                        </button>
-                                    </div>
-                                </div>
-                                
-                                <!-- Modal Overlay -->
-                                <div x-show="showModal" 
-                                     x-transition:enter="transition ease-out duration-300"
-                                     x-transition:enter-start="opacity-0"
-                                     x-transition:enter-end="opacity-100"
-                                     x-transition:leave="transition ease-in duration-200"
-                                     x-transition:leave-start="opacity-100"
-                                     x-transition:leave-end="opacity-0"
-                                     @click="showModal = false"
-                                     @keydown.escape.window="showModal = false"
-                                     class="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4"
-                                     style="z-index: 9999;">
-                                    
-                                    <div @click.stop 
-                                         x-show="showModal"
-                                         x-transition:enter="transition ease-out duration-300"
-                                         x-transition:enter-start="opacity-0 transform scale-95"
-                                         x-transition:enter-end="opacity-100 transform scale-100"
-                                         x-transition:leave="transition ease-in duration-200"
-                                         x-transition:leave-start="opacity-100 transform scale-100"
-                                         x-transition:leave-end="opacity-0 transform scale-95"
-                                         class="relative max-w-4xl max-h-full">
-                                        
-                                        <!-- Close Button -->
-                                        <button @click="showModal = false"
-                                                class="absolute -top-4 -right-4 bg-white rounded-full w-10 h-10 flex items-center justify-center text-black hover:bg-gray-200 shadow-lg z-10 text-xl font-bold">
-                                            ×
-                                        </button>
-                                        
-                                        <!-- Image -->
-                                        <img src="' . $imageUrl . '" alt="' . $imageModel->name . '" 
-                                             class="max-w-full max-h-[80vh] object-contain rounded-lg shadow-2xl">
-                                        
-                                        <!-- Image Info -->
-                                        <div class="bg-black bg-opacity-50 text-white text-center py-2 px-4 rounded-b-lg">
-                                            <p class="font-medium">' . $imageModel->name . '</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>'
-                        );
-                    }
-                }
-                return 'Pilih model untuk melihat preview gambar';
-            })
             ->afterStateUpdated(function ($state, Set $set) {
                 if ($state) {
                     $imageModel = \App\Models\ImageModel::find($state);
@@ -160,6 +94,40 @@ class OrderResource extends Resource
                         $set('photo', null);
                     }
                 }
+            }),
+
+        // Alternative: Tambahkan field khusus untuk preview yang lebih besar
+        \Filament\Forms\Components\Placeholder::make('image_preview')
+            ->label('Preview Gambar')
+            ->visible(fn (Get $get) => $get('image_source') === 'existing' && $get('image_model_id'))
+            ->content(function (Get $get) {
+                if ($get('image_model_id')) {
+                    $imageModel = \App\Models\ImageModel::find($get('image_model_id'));
+                    if ($imageModel && $imageModel->image) {
+                        $imageUrl = Storage::disk('public')->url($imageModel->image);
+                        return new \Illuminate\Support\HtmlString(
+                            '<div class="space-y-3">
+                                <div class="border rounded-lg p-4 bg-gray-50">
+                                    <img src="' . $imageUrl . '" alt="' . $imageModel->name . '" 
+                                         class="w-full max-w-md mx-auto rounded border shadow-sm">
+                                    <p class="text-center text-sm text-gray-600 mt-2 font-medium">' . $imageModel->name . '</p>
+                                    <div class="flex justify-center mt-3 gap-2">
+                                        <a href="' . $imageUrl . '" target="_blank" 
+                                           class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors text-sm no-underline">
+                                            Buka di Tab Baru
+                                        </a>
+                                        <button type="button" 
+                                                onclick="navigator.clipboard.writeText(\'' . $imageUrl . '\'); alert(\'URL gambar disalin!\')"
+                                                class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors text-sm">
+                                            Salin URL
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>'
+                        );
+                    }
+                }
+                return '';
             }),
 
         FileUpload::make('photo')
