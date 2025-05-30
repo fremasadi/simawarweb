@@ -19,6 +19,24 @@ class AccessoryResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
+    protected static ?string $navigationLabel = 'Aksesoris Pesanan';
+
+    public static function getModelLabel(): string
+    {
+        return 'Aksesoris Pesanan';
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return 'Daftar Aksesoris Pesanan';
+    }
+
+
+    public static function getNavigationGroup(): ?string
+    {
+        return 'Manajemen Pesanan';
+    }
+
     public static function form(Form $form): Form
     {
         return $form
