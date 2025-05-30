@@ -87,28 +87,7 @@ class OrderResource extends Resource
             ->live()
             ->placeholder('Pilih model untuk melihat preview...')
             ->helperText(function (Get $get) {
-                if ($get('image_model_id')) {
-                    $imageModel = \App\Models\ImageModel::find($get('image_model_id'));
-                    if ($imageModel && $imageModel->image) {
-                        $imageUrl = Storage::disk('public')->url($imageModel->image);
-                        return new \Illuminate\Support\HtmlString(
-                            '<div class="mt-2 flex items-center gap-3">
-                                <img src="' . $imageUrl . '" alt="' . $imageModel->name . '" 
-                                     class="w-24 h-24 object-cover rounded border cursor-pointer hover:opacity-80 transition-opacity" 
-                                     onclick="this.requestFullscreen ? this.requestFullscreen() : null"
-                                     title="Klik untuk fullscreen"
-                                     style="max-width: 96px; max-height: 96px;">
-                                <div class="flex flex-col gap-2">
-                                    <p class="text-xs text-gray-600">Preview: ' . $imageModel->name . '</p>
-                                    <a href="' . $imageUrl . '" target="_blank" 
-                                       class="inline-block px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors text-center no-underline">
-                                        Lihat Lebih Besar
-                                    </a>
-                                </div>
-                            </div>'
-                        );
-                    }
-                }
+                
                 return 'Pilih model untuk melihat preview gambar';
             })
             ->afterStateUpdated(function ($state, Set $set) {
