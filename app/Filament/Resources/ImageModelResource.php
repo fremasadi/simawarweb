@@ -51,8 +51,8 @@ class ImageModelResource extends Resource
                     ->required(),
                     Forms\Components\TextInput::make('price')
                     ->label('Estimasi Harga')
-                    ->image()
-                    ->required(),
+                    ->required()
+                    ->maxLength(255),
             ]);
     }
 
