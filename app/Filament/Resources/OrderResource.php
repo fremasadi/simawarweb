@@ -187,7 +187,7 @@ class OrderResource extends Resource
                 Forms\Components\Textarea::make('address')
                     ->label('Alamat Pemesanan')
                     ->required()
-                    ->columnSpanFull()
+                    ->maxLength(255)
                     ->readonly(), // ubah dari ->disabled() menjadi ->readonly()
 
                     Forms\Components\TextInput::make('phone')
@@ -205,6 +205,8 @@ class OrderResource extends Resource
     })
     ->placeholder('Pilih accessories')
     ->searchable()
+    ->columnSpanFull()
+
     ->helperText('Pilih satu atau lebih accessories yang terkait dengan order'),
 
                 
