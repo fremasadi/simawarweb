@@ -108,7 +108,7 @@ class OrderResource extends Resource
                         return new \Illuminate\Support\HtmlString(
                             '<div class="space-y-3">
                                 <div class="border rounded-lg p-4 bg-gray-50">
-                                    <img src="' . $imageUrl . '" alt="' . $imageModel->name . '" 
+                                    <img src="' . $imageUrl . '" alt="' . $imageModel->price . '" 
                                          class="w-full max-w-md mx-auto rounded border shadow-sm">
                                     <p class="text-center text-sm text-gray-600 mt-2 font-medium">' . $imageModel->name . '</p>
                                     <div class="flex justify-center mt-3 gap-2">

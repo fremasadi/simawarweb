@@ -49,6 +49,10 @@ class ImageModelResource extends Resource
                     ->label('Gambar Model')
                     ->image()
                     ->required(),
+                    Forms\Components\FileUpload::make('price')
+                    ->label('Estimasi Harga')
+                    ->image()
+                    ->required(),
             ]);
     }
 
@@ -62,6 +66,8 @@ class ImageModelResource extends Resource
                     ->searchable(),
                 Tables\Columns\ImageColumn::make('image')
                 ->label('Gambar Model'),
+                Tables\Columns\ImageColumn::make('price')
+                ->label('Estimasi Harga'),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
