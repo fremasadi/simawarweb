@@ -11,81 +11,63 @@ use App\Models\StoreSetting;
 class AttendanceController extends Controller
 {
     public function checkIn(Request $request)
-    {
-        if ($request->qr_code !== 'simawar') {
-            return response()->json(['message' => 'QR Code tidak valid!'], 400);
-        }
-    
-        if (Carbon::now()->isSunday()) {
-            return response()->json(['message' => 'Absensi tidak diperbolehkan pada hari Minggu!'], 400);
-        }
-    
-        $user = Auth::user();
-        $today = Carbon::now()->toDateString();
-        $now = Carbon::now();
-    
-        $attendance = Attendance::where('user_id', $user->id)
-            ->where('date', $today)
-            ->first();
-    
-        $storeSetting = StoreSetting::first();
-        if (!$storeSetting) {
-            return response()->json(['message' => 'Pengaturan toko tidak ditemukan!'], 500);
-        }
-    
-        if (!$storeSetting->is_open) {
-            return response()->json(['message' => 'Toko sedang tutup!'], 400);
-        }
-    
-        $openTimeToday = Carbon::parse($today . ' ' . $storeSetting->open_time);
-        $closeTimeToday = Carbon::parse($today . ' ' . $storeSetting->close_time);
+{
+    if ($request->qr_code !== 'simawar') {
+        return response()->json(['message' => 'QR Code tidak valid!'], 400);
+    }
 
-        if ($closeTimeToday->lt($openTimeToday)) {
-            $closeTimeToday->addDay();
-        }
+    if (Carbon::now()->isSunday()) {
+        return response()->json(['message' => 'Absensi tidak diperbolehkan pada hari Minggu!'], 400);
+    }
 
-        $earlyCheckInTime = $openTimeToday->copy()->subMinutes(15);
+    $user = Auth::user();
+    $today = Carbon::now()->toDateString();
+    $now = Carbon::now();
 
-// Cegah absen terlalu awal
-if ($now->lt($earlyCheckInTime)) {
-    return response()->json([
-        'message' => 'Belum bisa absen! Absensi hanya diperbolehkan mulai 15 menit sebelum toko buka (' . $earlyCheckInTime->format('H:i') . ')',
-    ], 400);
-}
+    $attendance = Attendance::where('user_id', $user->id)
+        ->where('date', $today)
+        ->first();
 
-// Cegah absen setelah toko tutup
-if ($now->gt($closeTimeToday)) {
-    return response()->json([
-        'message' => 'Toko sudah tutup! Jam operasional toko adalah ' .
-            $storeSetting->open_time . ' - ' . $storeSetting->close_time,
-    ], 400);
-}
+    $storeSetting = StoreSetting::first();
+    if (!$storeSetting) {
+        return response()->json(['message' => 'Pengaturan toko tidak ditemukan!'], 500);
+    }
 
-    
-        // Jika sudah absen masuk, tapi belum check out → check out
-        if ($attendance) {
-            if ($attendance->check_out) {
-                return response()->json(['message' => 'Anda sudah absen pulang hari ini!'], 400);
-            }
-    
-            $attendance->check_out = $now->format('H:i:s');
-            $attendance->save();
-    
-            \Artisan::call('salary:calculate-deductions');
-    
+    if (!$storeSetting->is_open) {
+        return response()->json(['message' => 'Toko sedang tutup!'], 400);
+    }
+
+    $openTimeToday = Carbon::parse($today . ' ' . $storeSetting->open_time);
+    $closeTimeToday = Carbon::parse($today . ' ' . $storeSetting->close_time);
+
+    if ($closeTimeToday->lt($openTimeToday)) {
+        $closeTimeToday->addDay();
+    }
+
+    $earlyCheckInTime = $openTimeToday->copy()->subMinutes(15);
+
+    // Jika belum ada absensi → check-in
+    if (!$attendance) {
+        // Cegah absen terlalu awal
+        if ($now->lt($earlyCheckInTime)) {
             return response()->json([
-                'message' => 'Absen pulang berhasil!',
-                'data' => $attendance
-            ], 200);
+                'message' => 'Belum bisa absen! Absensi hanya diperbolehkan mulai 15 menit sebelum toko buka (' . $earlyCheckInTime->format('H:i') . ')',
+            ], 400);
         }
-    
-        // Jika belum ada absensi → check in
+
+        // Cegah check-in setelah toko tutup
+        if ($now->gt($closeTimeToday)) {
+            return response()->json([
+                'message' => 'Toko sudah tutup! Jam operasional toko adalah ' .
+                    $storeSetting->open_time . ' - ' . $storeSetting->close_time,
+            ], 400);
+        }
+
         $lateMinutes = 0;
         if ($now->gt($openTimeToday)) {
             $lateMinutes = $openTimeToday->diffInMinutes($now);
         }
 
-    
         $attendance = Attendance::create([
             'user_id'       => $user->id,
             'date'          => $today,
@@ -93,14 +75,32 @@ if ($now->gt($closeTimeToday)) {
             'status'        => $lateMinutes > 0 ? 'telat' : 'hadir',
             'late_minutes'  => $lateMinutes,
         ]);
-    
+
         \Artisan::call('salary:calculate-deductions');
-    
+
         return response()->json([
             'message' => 'Absensi masuk berhasil!',
             'data' => $attendance
         ], 201);
     }
+
+    // Jika sudah check-in tapi belum check-out → izinkan absen pulang meskipun toko sudah tutup
+    if (!$attendance->check_out) {
+        $attendance->check_out = $now->format('H:i:s');
+        $attendance->save();
+
+        \Artisan::call('salary:calculate-deductions');
+
+        return response()->json([
+            'message' => 'Absen pulang berhasil!',
+            'data' => $attendance
+        ], 200);
+    }
+
+    // Sudah check-in dan check-out
+    return response()->json(['message' => 'Anda sudah absen pulang hari ini!'], 400);
+}
+
     
     
     // untuk tampilkan absensi
