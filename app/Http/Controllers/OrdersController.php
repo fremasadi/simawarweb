@@ -256,16 +256,45 @@ public function completeOrder(Request $request, $id)
         ], 404);
     }
 
+    // Tandai order selesai
     $order->status = 'selesai';
     $order->save();
 
-    // Kirim WA lewat Fonnte
+    // === Tambah Bonus Ke Salary ===
+    $bonus = 0.15 * floatval($order->price); // 15% dari harga
+    $today = Carbon::now()->toDateString();
+
+    DB::transaction(function () use ($user, $bonus, $today) {
+        // Cari salary aktif untuk hari ini
+        $salary = Salary::where('user_id', $user->id)
+            ->where('pay_date', $today)
+            ->first();
+
+        if (!$salary) {
+            // Jika belum ada salary, buatkan dengan nilai dasar nol
+            $salary = Salary::create([
+                'user_id'           => $user->id,
+                'salary_setting_id' => 1, // Ganti sesuai kebutuhan
+                'base_salary'       => 0,
+                'total_salary'      => $bonus,
+                'total_deduction'   => 0,
+                'status'            => 'pending',
+                'pay_date'          => $today,
+            ]);
+        } else {
+            // Tambahkan bonus ke total_salary yang ada
+            $salary->total_salary += $bonus;
+            $salary->save();
+        }
+    });
+
+    // === Kirim WA ===
     try {
         $response = Http::withHeaders([
-            'Authorization' => 'R5uHqhjeppTQbDefuzxY', // Ganti token sesuai
+            'Authorization' => 'R5uHqhjeppTQbDefuzxY',
         ])->post('https://api.fonnte.com/send', [
-            'target' => $order->phone,
-            'message' => "Pesanan Anda di Rumah Jahit Mawar telah selesai dan sudah bisa diambil. Terima kasih atas kepercayaan Anda!",
+            'target'      => $order->phone,
+            'message'     => "Pesanan Anda di Rumah Jahit Mawar telah selesai dan sudah bisa diambil. Terima kasih atas kepercayaan Anda!",
             'countryCode' => '62',
         ]);
 
@@ -278,8 +307,8 @@ public function completeOrder(Request $request, $id)
 
     return response()->json([
         'success' => true,
-        'message' => 'Pesanan berhasil diselesaikan.',
-        'data' => $order,
+        'message' => 'Pesanan berhasil diselesaikan dan bonus ditambahkan.',
+        'data'    => $order,
     ]);
 }
 
