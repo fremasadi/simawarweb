@@ -64,4 +64,10 @@ class Order extends Model
             set: fn ($value) => is_array($value) ? json_encode($value) : $value,
         );
     }
+
+    public function bonuses()
+{
+    return $this->hasMany(OrderBonus::class);
+}
+
 }

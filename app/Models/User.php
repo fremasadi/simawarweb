@@ -79,4 +79,10 @@ public function orders()
     return $this->hasMany(Order::class, 'ditugaskan_ke');
 }
 
+public function orderBonuses()
+{
+    return $this->hasMany(OrderBonus::class);
+}
+
+
 }

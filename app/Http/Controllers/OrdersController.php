@@ -6,6 +6,7 @@ use App\Models\Order;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
+use App\Models\OrderBonus;
 
 class OrdersController extends Controller
 {
@@ -257,17 +258,15 @@ public function completeOrder(Request $request, $id)
     $bonus = 0.15 * floatval($order->price); // 15% dari harga
     $today = Carbon::now()->toDateString();
 
-    DB::transaction(function () use ($user, $bonus, $today) {
-        // Cari salary aktif untuk hari ini
+    DB::transaction(function () use ($user, $bonus, $today, $order) {
         $salary = Salary::where('user_id', $user->id)
             ->where('pay_date', $today)
             ->first();
-
+    
         if (!$salary) {
-            // Jika belum ada salary, buatkan dengan nilai dasar nol
             $salary = Salary::create([
                 'user_id'           => $user->id,
-                'salary_setting_id' => 1, // Ganti sesuai kebutuhan
+                'salary_setting_id' => 1,
                 'base_salary'       => 0,
                 'total_salary'      => $bonus,
                 'total_deduction'   => 0,
@@ -275,10 +274,17 @@ public function completeOrder(Request $request, $id)
                 'pay_date'          => $today,
             ]);
         } else {
-            // Tambahkan bonus ke total_salary yang ada
             $salary->total_salary += $bonus;
             $salary->save();
         }
+    
+        // Simpan riwayat bonus
+        OrderBonus::create([
+            'order_id'     => $order->id,
+            'user_id'      => $user->id,
+            'salary_id'    => $salary->id,
+            'bonus_amount' => $bonus,
+        ]);
     });
 
     // === Kirim WA ===
