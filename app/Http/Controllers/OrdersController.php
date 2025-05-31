@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use App\Models\OrderBonus;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class OrdersController extends Controller
 {
