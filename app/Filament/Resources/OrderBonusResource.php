@@ -18,6 +18,23 @@ class OrderBonusResource extends Resource
     protected static ?string $model = OrderBonus::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationLabel = 'Bonus Karyawan';
+
+    public static function getModelLabel(): string
+    {
+        return 'Bonus Karyawan';
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return 'Daftar Bonus';
+    }
+
+
+    public static function getNavigationGroup(): ?string
+    {
+        return 'Manajemen Gaji';
+    }
 
     public static function form(Form $form): Form
     {
@@ -41,16 +58,18 @@ class OrderBonusResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('order_id')
+                Tables\Columns\TextColumn::make('order.name')
+                ->label('Nama Pemesan')
+
                     ->numeric()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('user_id')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('salary_id')
+                Tables\Columns\TextColumn::make('user.name')
+                ->label('Nama Karyawan')
+
                     ->numeric()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('bonus_amount')
+                    ->label('Total Bonus')
                     ->numeric()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
