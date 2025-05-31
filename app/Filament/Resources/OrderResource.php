@@ -59,10 +59,10 @@ class OrderResource extends Resource
     }
 
     public static function form(Form $form): Form
-    {
-        return $form
-            ->schema([
-                Repeater::make('images')
+{
+    return $form
+        ->schema([
+            Repeater::make('images')
                 ->label('Foto Model')
                 ->schema([
                     Radio::make('image_source')
@@ -71,12 +71,12 @@ class OrderResource extends Resource
                             'existing' => 'Pilih dari Model yang Ada',
                             'upload' => 'Upload Baru'
                         ])
-                        ->default('existing')
+                        ->default('upload')
                         ->inline()
                         ->live()
                         ->columnSpanFull(),
 
-                    Select::make('image_model_id')
+                    Select::make('temp_image_model_id')
                         ->label('Pilih Model Gambar')
                         ->options(function () {
                             return \App\Models\ImageModel::all()->mapWithKeys(function ($model) {
@@ -92,19 +92,20 @@ class OrderResource extends Resource
                             if ($state) {
                                 $imageModel = \App\Models\ImageModel::find($state);
                                 if ($imageModel && $imageModel->image) {
-                                    // Simpan dalam format sederhana seperti struktur lama
-                                    $imagePath = $imageModel->image;
-                                    $set('photo', $imagePath);
+                                    // Set path gambar ke field photo
+                                    $set('photo', $imageModel->image);
                                 }
+                            } else {
+                                $set('photo', null);
                             }
                         }),
 
                     \Filament\Forms\Components\Placeholder::make('image_preview')
                         ->label('Preview Gambar')
-                        ->visible(fn (Get $get) => $get('image_source') === 'existing' && $get('image_model_id'))
+                        ->visible(fn (Get $get) => $get('image_source') === 'existing' && $get('temp_image_model_id'))
                         ->content(function (Get $get) {
-                            if ($get('image_model_id')) {
-                                $imageModel = \App\Models\ImageModel::find($get('image_model_id'));
+                            if ($get('temp_image_model_id')) {
+                                $imageModel = \App\Models\ImageModel::find($get('temp_image_model_id'));
                                 if ($imageModel && $imageModel->image) {
                                     $imageUrl = Storage::disk('public')->url($imageModel->image);
                                     return new \Illuminate\Support\HtmlString(
@@ -145,7 +146,8 @@ class OrderResource extends Resource
                         ->live()
                         ->afterStateUpdated(function ($state, Set $set) {
                             if ($state) {
-                                $set('image_model_id', null);
+                                // Reset temp field saat upload
+                                $set('temp_image_model_id', null);
                             }
                         }),
                 ])
@@ -155,146 +157,142 @@ class OrderResource extends Resource
                 ->reorderable()
                 ->collapsible(false)
                 ->createItemButtonLabel('Tambah Gambar')
-                ->columns(1),
-                Forms\Components\Select::make('customer_id')
-                    ->label('Pilih Customer')
-                    ->options(\App\Models\Customer::all()->pluck('name', 'id')) // Menampilkan nama customer
-                    ->searchable()
-                    ->required()
-                    ->live()
-                    ->afterStateUpdated(function ($state, \Filament\Forms\Set $set) {
-                        $customer = \App\Models\Customer::find($state);
-                        if ($customer) {
-                            $set('name', $customer->name);
-                            $set('phone', $customer->phone);
-                            $set('address', $customer->address); // Pastikan kolom `address` ada di tabel customers
-                        }
-                    }),
-                
-                Forms\Components\TextInput::make('name')
-                    ->label('Nama Pemesanan')
-                    ->required()
-                    ->maxLength(255)
-                    ->readonly(), // ubah dari ->disabled() menjadi ->readonly()
+                ->columns(1)
+                ->mutateRelationshipDataBeforeSaveUsing(function (array $data): array {
+                    // Hanya simpan field photo saja, hapus field lainnya
+                    return collect($data)->map(function ($item) {
+                        return ['photo' => $item['photo'] ?? null];
+                    })->filter(function ($item) {
+                        return !empty($item['photo']);
+                    })->values()->toArray();
+                }),
 
-                Forms\Components\Textarea::make('address')
-                    ->label('Alamat Pemesanan')
-                    ->required()
-                    ->maxLength(255)
-                    ->readonly(), // ubah dari ->disabled() menjadi ->readonly()
+            Forms\Components\Select::make('customer_id')
+                ->label('Pilih Customer')
+                ->options(\App\Models\Customer::all()->pluck('name', 'id'))
+                ->searchable()
+                ->required()
+                ->live()
+                ->afterStateUpdated(function ($state, \Filament\Forms\Set $set) {
+                    $customer = \App\Models\Customer::find($state);
+                    if ($customer) {
+                        $set('name', $customer->name);
+                        $set('phone', $customer->phone);
+                        $set('address', $customer->address);
+                    }
+                }),
+            
+            Forms\Components\TextInput::make('name')
+                ->label('Nama Pemesanan')
+                ->required()
+                ->maxLength(255)
+                ->readonly(),
 
-                    Forms\Components\TextInput::make('phone')
-                    ->label('No.Telefon Pemesan')
-                    ->tel()
-                    ->required('No. Telefon Pemesan wajib diisi.')
-                    ->maxLength(255)
-                    ->readonly(), // ubah dari ->disabled() menjadi ->readonly()
-                    MultiSelect::make('accessories_list')
-    ->label('Pilih Accessories')
-    ->options(function () {
-        return Accessory::all()->mapWithKeys(function ($item) {
-            return [$item->id => $item->name . ' (Rp ' . number_format($item->price, 0, ',', '.') . ')'];
-        })->toArray();
-    })
-    ->placeholder('Pilih accessories')
-    ->searchable()
-    ->columnSpanFull()
+            Forms\Components\Textarea::make('address')
+                ->label('Alamat Pemesanan')
+                ->required()
+                ->maxLength(255)
+                ->readonly(),
 
-    ->helperText('Pilih satu atau lebih accessories yang terkait dengan order'),
+            Forms\Components\TextInput::make('phone')
+                ->label('No.Telefon Pemesan')
+                ->tel()
+                ->required('No. Telefon Pemesan wajib diisi.')
+                ->maxLength(255)
+                ->readonly(),
 
-                
-                Forms\Components\TextInput::make('description')
-                    ->label('Deskripsi')
-                    ->maxLength(255),
-                    Select::make('ditugaskan_ke')
-    ->label('Ditugaskan Ke')
-    ->relationship(
-        name: 'user',
-        titleAttribute: 'name',
-        modifyQueryUsing: fn (Builder $query) => $query
-            ->where('role', 'karyawan')
-            ->whereDoesntHave('orders', function (Builder $subQuery) {
-                $subQuery->where('status', 'dikerjakan');
-            }),
-    )
-    ->searchable()
-    ->preload()
-    ->required(),
-                
+            MultiSelect::make('accessories_list')
+                ->label('Pilih Accessories')
+                ->options(function () {
+                    return Accessory::all()->mapWithKeys(function ($item) {
+                        return [$item->id => $item->name . ' (Rp ' . number_format($item->price, 0, ',', '.') . ')'];
+                    })->toArray();
+                })
+                ->placeholder('Pilih accessories')
+                ->searchable()
+                ->columnSpanFull()
+                ->helperText('Pilih satu atau lebih accessories yang terkait dengan order'),
+            
+            Forms\Components\TextInput::make('description')
+                ->label('Deskripsi')
+                ->maxLength(255),
 
+            Select::make('ditugaskan_ke')
+                ->label('Ditugaskan Ke')
+                ->relationship(
+                    name: 'user',
+                    titleAttribute: 'name',
+                    modifyQueryUsing: fn (Builder $query) => $query
+                        ->where('role', 'karyawan')
+                        ->whereDoesntHave('orders', function (Builder $subQuery) {
+                            $subQuery->where('status', 'dikerjakan');
+                        }),
+                )
+                ->searchable()
+                ->preload()
+                ->required(),
 
-                Select::make('sizemodel_id')
-                    ->label('Pilih Model Ukuran')
-                    ->options(\App\Models\SizeModel::pluck('name', 'id'))
-                    ->required()
-                    ->live()
-                    ->afterStateUpdated(function ($state, Set $set, Get $get) {
-                        if (!$state) return;
+            Select::make('sizemodel_id')
+                ->label('Pilih Model Ukuran')
+                ->options(\App\Models\SizeModel::pluck('name', 'id'))
+                ->required()
+                ->live()
+                ->afterStateUpdated(function ($state, Set $set, Get $get) {
+                    if (!$state) return;
+                    
+                    $sizeModel = \App\Models\SizeModel::find($state);
+                    $quantity = (int) $get('quantity') ?: 1;
+
+                    if ($sizeModel && $sizeModel->deadline) {
+                        preg_match('/(\d+)/', $sizeModel->deadline, $matches);
+                        $baseDays = (int) ($matches[1] ?? 1);
+                        $totalDays = $baseDays * $quantity;
+                        $newDeadline = Carbon::now()->addDays($totalDays);
+                        $set('deadline', $newDeadline->format('Y-m-d H:i:s'));
                         
-                        $sizeModel = \App\Models\SizeModel::find($state);
-                        $quantity = (int) $get('quantity') ?: 1;
-
-                        if ($sizeModel && $sizeModel->deadline) {
-                            // Ambil angka dari string deadline (misal "3 hari" -> 3)
-                            preg_match('/(\d+)/', $sizeModel->deadline, $matches);
-                            $baseDays = (int) ($matches[1] ?? 1);
-
-                            // Hitung total hari berdasarkan quantity
-                            $totalDays = $baseDays * $quantity;
-                            
-                            // Set deadline dari tanggal sekarang + total hari
-                            $newDeadline = Carbon::now()->addDays($totalDays);
-
-                            $set('deadline', $newDeadline->format('Y-m-d H:i:s'));
-                            
-                            // Set size jika diperlukan
-                            if (isset($sizeModel->size)) {
-                                $set('size', $sizeModel->size);
-                            }
+                        if (isset($sizeModel->size)) {
+                            $set('size', $sizeModel->size);
                         }
-                    }),
+                    }
+                }),
 
-                TextInput::make('quantity')
-                    ->label('Jumlah')
-                    ->numeric()
-                    ->default(1)
-                    ->required()
-                    ->live()
-                    ->afterStateUpdated(function ($state, Set $set, Get $get) {
-                        $sizeModelId = $get('sizemodel_id');
-                        if (!$sizeModelId) return;
-                        
-                        $sizeModel = \App\Models\SizeModel::find($sizeModelId);
-                        $quantity = (int) $state ?: 1;
+            TextInput::make('quantity')
+                ->label('Jumlah')
+                ->numeric()
+                ->default(1)
+                ->required()
+                ->live()
+                ->afterStateUpdated(function ($state, Set $set, Get $get) {
+                    $sizeModelId = $get('sizemodel_id');
+                    if (!$sizeModelId) return;
+                    
+                    $sizeModel = \App\Models\SizeModel::find($sizeModelId);
+                    $quantity = (int) $state ?: 1;
 
-                        if ($sizeModel && $sizeModel->deadline) {
-                            // Ambil angka dari string deadline
-                            preg_match('/(\d+)/', $sizeModel->deadline, $matches);
-                            $baseDays = (int) ($matches[1] ?? 1);
+                    if ($sizeModel && $sizeModel->deadline) {
+                        preg_match('/(\d+)/', $sizeModel->deadline, $matches);
+                        $baseDays = (int) ($matches[1] ?? 1);
+                        $totalDays = $baseDays * $quantity;
+                        $newDeadline = Carbon::now()->addDays($totalDays);
+                        $set('deadline', $newDeadline->format('Y-m-d H:i:s'));
+                    }
+                }),
 
-                            // Hitung ulang deadline berdasarkan quantity baru
-                            $totalDays = $baseDays * $quantity;
-                            $newDeadline = Carbon::now()->addDays($totalDays);
+            DateTimePicker::make('deadline')
+                ->label('Batas Waktu')
+                ->required()
+                ->displayFormat('d/m/Y H:i')
+                ->format('Y-m-d H:i:s')
+                ->readonly(),
 
-                            $set('deadline', $newDeadline->format('Y-m-d H:i:s'));
-                        }
-                    }),
+            Forms\Components\TextInput::make('price')
+                ->label('Harga')
+                ->tel()
+                ->required('Harga wajib diisi.')
+                ->maxLength(255),
 
-                DateTimePicker::make('deadline')
-                    ->label('Batas Waktu')
-                    ->required()
-                    ->displayFormat('d/m/Y H:i')
-                    ->format('Y-m-d H:i:s')
-                    ->readonly(), // ubah dari ->disabled() menjadi ->readonly()
-                Forms\Components\TextInput::make('price')
-                    ->label('Harga')
-                    ->tel()
-                    ->required('Harga wajib diisi.')
-                    ->maxLength(255),                
-                
-
-                // Section untuk menampilkan field ukuran dinamis
-                Section::make('Ukuran')
+            // Section untuk menampilkan field ukuran dinamis
+            Section::make('Ukuran')
                 ->schema(function (Get $get) {
                     $sizemodelId = $get('sizemodel_id');
                     if (!$sizemodelId) {
@@ -310,10 +308,7 @@ class OrderResource extends Resource
 
                     $fields = [];
                     foreach ($sizeFields as $fieldName) {
-                        // Bersihkan nama field dari spasi di awal dan akhir
                         $cleanFieldName = trim($fieldName);
-                        
-                        // Buat key yang aman untuk form
                         $safeKey = str_replace(' ', '_', strtolower($cleanFieldName));
                         
                         $fields[] = TextInput::make("size.{$safeKey}")
@@ -328,8 +323,8 @@ class OrderResource extends Resource
                     ];
                 })
                 ->columnSpanFull()
-            ]);
-    }
+        ]);
+}
 
     public static function table(Table $table): Table
     {
