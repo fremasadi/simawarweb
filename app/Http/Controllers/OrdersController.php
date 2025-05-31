@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use App\Models\OrderBonus;
+use Illuminate\Support\Carbon;
 
 class OrdersController extends Controller
 {
@@ -254,8 +255,7 @@ public function completeOrder(Request $request, $id)
     $order->status = 'selesai';
     $order->save();
 
-    // === Tambah Bonus Ke Salary ===
-    $bonus = 0.15 * floatval($order->price); // 15% dari harga
+    $bonus = 0.15 * floatval($order->price); 
     $today = Carbon::now()->toDateString();
 
     DB::transaction(function () use ($user, $bonus, $today, $order) {
