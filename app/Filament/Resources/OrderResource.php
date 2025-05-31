@@ -74,7 +74,8 @@ class OrderResource extends Resource
                         ->default('upload')
                         ->inline()
                         ->live()
-                        ->columnSpanFull(),
+                        ->columnSpanFull()
+                        ->dehydrated(false), // Jangan simpan field ini
 
                     Select::make('temp_image_model_id')
                         ->label('Pilih Model Gambar')
@@ -88,6 +89,7 @@ class OrderResource extends Resource
                         ->visible(fn (Get $get) => $get('image_source') === 'existing')
                         ->live()
                         ->placeholder('Pilih model untuk melihat preview...')
+                        ->dehydrated(false) // Jangan simpan field ini
                         ->afterStateUpdated(function ($state, Set $set) {
                             if ($state) {
                                 $imageModel = \App\Models\ImageModel::find($state);
@@ -103,6 +105,7 @@ class OrderResource extends Resource
                     \Filament\Forms\Components\Placeholder::make('image_preview')
                         ->label('Preview Gambar')
                         ->visible(fn (Get $get) => $get('image_source') === 'existing' && $get('temp_image_model_id'))
+                        ->dehydrated(false) // Jangan simpan field ini
                         ->content(function (Get $get) {
                             if ($get('temp_image_model_id')) {
                                 $imageModel = \App\Models\ImageModel::find($get('temp_image_model_id'));
@@ -157,15 +160,7 @@ class OrderResource extends Resource
                 ->reorderable()
                 ->collapsible(false)
                 ->createItemButtonLabel('Tambah Gambar')
-                ->columns(1)
-                ->mutateRelationshipDataBeforeSaveUsing(function (array $data): array {
-                    // Hanya simpan field photo saja, hapus field lainnya
-                    return collect($data)->map(function ($item) {
-                        return ['photo' => $item['photo'] ?? null];
-                    })->filter(function ($item) {
-                        return !empty($item['photo']);
-                    })->values()->toArray();
-                }),
+                ->columns(1),
 
             Forms\Components\Select::make('customer_id')
                 ->label('Pilih Customer')
