@@ -7,6 +7,7 @@ use App\Http\Controllers\OrdersController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\SalaryHistoryController;
+use App\Http\Controllers\OrderBonusController;
 
 
 Route::post('login', [AuthController::class, 'login']);
@@ -28,5 +29,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/salary-history', [SalaryHistoryController::class, 'index']);
     Route::get('/salary-deductions/{salary_id}', [SalaryHistoryController::class, 'showDeductions']);
+
+    Route::get('/user/order-bonuses', [OrderBonusController::class, 'index']);
 
 });
