@@ -249,13 +249,6 @@ public function completeOrder(Request $request, $id)
         ->where('status', 'dikerjakan')
         ->first();
 
-    if (!$order) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Order tidak ditemukan atau tidak sedang dikerjakan oleh Anda.'
-        ], 404);
-    }
-
     // Tandai order selesai
     $order->status = 'selesai';
     $order->save();
