@@ -63,106 +63,99 @@ class OrderResource extends Resource
         return $form
             ->schema([
                 Repeater::make('images')
-    ->label('Foto Model')
-    ->schema([
-        Radio::make('image_source')
-            ->label('Sumber Gambar')
-            ->options([
-                'existing' => 'Pilih dari Model yang Ada',
-                'upload' => 'Upload Baru'
-            ])
-            ->default('existing')
-            ->inline()
-            ->live()
-            ->columnSpanFull(),
+                ->label('Foto Model')
+                ->schema([
+                    Radio::make('image_source')
+                        ->label('Sumber Gambar')
+                        ->options([
+                            'existing' => 'Pilih dari Model yang Ada',
+                            'upload' => 'Upload Baru'
+                        ])
+                        ->default('existing')
+                        ->inline()
+                        ->live()
+                        ->columnSpanFull(),
 
-        Select::make('image_model_id')
-            ->label('Pilih Model Gambar')
-            ->options(function () {
-                return \App\Models\ImageModel::all()->mapWithKeys(function ($model) {
-                    return [$model->id => $model->name];
-                });
-            })
-            ->searchable()
-            ->preload()
-            ->visible(fn (Get $get) => $get('image_source') === 'existing')
-            ->live()
-            ->placeholder('Pilih model untuk melihat preview...')
-            ->afterStateUpdated(function ($state, Set $set) {
-                if ($state) {
-                    $imageModel = \App\Models\ImageModel::find($state);
-                    if ($imageModel && $imageModel->image) {
-                        $set('selected_image_path', $imageModel->image);
-                        $set('photo', null);
-                    }
-                }
-            }),
+                    Select::make('image_model_id')
+                        ->label('Pilih Model Gambar')
+                        ->options(function () {
+                            return \App\Models\ImageModel::all()->mapWithKeys(function ($model) {
+                                return [$model->id => $model->name];
+                            });
+                        })
+                        ->searchable()
+                        ->preload()
+                        ->visible(fn (Get $get) => $get('image_source') === 'existing')
+                        ->live()
+                        ->placeholder('Pilih model untuk melihat preview...')
+                        ->afterStateUpdated(function ($state, Set $set) {
+                            if ($state) {
+                                $imageModel = \App\Models\ImageModel::find($state);
+                                if ($imageModel && $imageModel->image) {
+                                    // Simpan dalam format sederhana seperti struktur lama
+                                    $imagePath = $imageModel->image;
+                                    $set('photo', $imagePath);
+                                }
+                            }
+                        }),
 
-        // Alternative: Tambahkan field khusus untuk preview yang lebih besar
-        \Filament\Forms\Components\Placeholder::make('image_preview')
-    ->label('Preview Gambar')
-    ->visible(fn (Get $get) => $get('image_source') === 'existing' && $get('image_model_id'))
-    ->content(function (Get $get) {
-        if ($get('image_model_id')) {
-            $imageModel = \App\Models\ImageModel::find($get('image_model_id'));
-            if ($imageModel && $imageModel->image) {
-                $imageUrl = Storage::disk('public')->url($imageModel->image);
-                return new \Illuminate\Support\HtmlString(
-                    '<div class="space-y-3" style="overflow: visible;">
-                        <div class="border rounded-lg p-4 bg-gray-50">
-                            <img src="' . $imageUrl . '" alt="' . $imageModel->name . '" 
-                                 class="w-full max-w-md mx-auto rounded border shadow-sm">
-                            <p class="text-center text-sm text-gray-600 mt-2 font-medium">
-                                Estimasi Harga: Rp ' . number_format($imageModel->price ?? 0, 0, ',', '.') . '
-                            </p>
-                            <div class="flex flex-col items-center mt-3 space-y-1">
-                            <a href="' . $imageUrl . '" target="_blank" 
-                            class="text-sm text-blue-600 hover:underline">
-                                Buka di Tab Baru
-                            </a>
-                            
-                        </div>
+                    \Filament\Forms\Components\Placeholder::make('image_preview')
+                        ->label('Preview Gambar')
+                        ->visible(fn (Get $get) => $get('image_source') === 'existing' && $get('image_model_id'))
+                        ->content(function (Get $get) {
+                            if ($get('image_model_id')) {
+                                $imageModel = \App\Models\ImageModel::find($get('image_model_id'));
+                                if ($imageModel && $imageModel->image) {
+                                    $imageUrl = Storage::disk('public')->url($imageModel->image);
+                                    return new \Illuminate\Support\HtmlString(
+                                        '<div class="space-y-3">
+                                            <div class="border rounded-lg p-4 bg-gray-50">
+                                                <img src="' . $imageUrl . '" alt="' . $imageModel->name . '" 
+                                                     class="w-full max-w-md mx-auto rounded border shadow-sm">
+                                                <p class="text-center text-sm text-gray-600 mt-2 font-medium">
+                                                    Estimasi Harga: Rp ' . number_format($imageModel->price ?? 0, 0, ',', '.') . '
+                                                </p>
+                                                <div class="flex flex-col items-center mt-3 space-y-1">
+                                                    <a href="' . $imageUrl . '" target="_blank" 
+                                                       class="text-sm text-blue-600 hover:underline">
+                                                        Buka di Tab Baru
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </div>'
+                                    );
+                                }
+                            }
+                            return '';
+                        }),
 
-                        </div>
-                    </div>'
-                );
-            }
-        }
-        return '';
-    }),
-
-
-        FileUpload::make('photo')
-            ->label('Upload Foto')
-            ->image()
-            ->imagePreviewHeight('120')
-            ->imageCropAspectRatio('1:1')
-            ->imageResizeMode('cover')
-            ->disk('public')
-            ->directory('order_images')
-            ->visibility('public')
-            ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
-            ->enableOpen()
-            ->previewable(true)
-            ->visible(fn (Get $get) => $get('image_source') === 'upload')
-            ->live()
-            ->afterStateUpdated(function ($state, Set $set) {
-                if ($state) {
-                    $set('image_model_id', null);
-                    $set('selected_image_path', null);
-                }
-            }),
-
-        \Filament\Forms\Components\Hidden::make('selected_image_path'),
-    ])
-    ->addActionLabel('Tambah Gambar')
-    ->columnSpanFull()
-    ->grid(2)
-    ->defaultItems(0)
-    ->reorderable()
-    ->collapsible(false)
-    ->createItemButtonLabel('Tambah Gambar')
-    ->columns(1),
+                    FileUpload::make('photo')
+                        ->label('Upload Foto')
+                        ->image()
+                        ->imagePreviewHeight('120')
+                        ->imageCropAspectRatio('1:1')
+                        ->imageResizeMode('cover')
+                        ->disk('public')
+                        ->directory('order_images')
+                        ->visibility('public')
+                        ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
+                        ->enableOpen()
+                        ->previewable(true)
+                        ->visible(fn (Get $get) => $get('image_source') === 'upload')
+                        ->live()
+                        ->afterStateUpdated(function ($state, Set $set) {
+                            if ($state) {
+                                $set('image_model_id', null);
+                            }
+                        }),
+                ])
+                ->addActionLabel('Tambah Gambar')
+                ->columnSpanFull()
+                ->defaultItems(1)
+                ->reorderable()
+                ->collapsible(false)
+                ->createItemButtonLabel('Tambah Gambar')
+                ->columns(1),
                 Forms\Components\Select::make('customer_id')
                     ->label('Pilih Customer')
                     ->options(\App\Models\Customer::all()->pluck('name', 'id')) // Menampilkan nama customer
