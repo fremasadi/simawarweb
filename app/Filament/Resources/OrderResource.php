@@ -545,14 +545,14 @@ class OrderResource extends Resource
                 //
             ])
             ->actions([
-                // Tables\Actions\EditAction::make(),
-
-                // Tombol "Selesai" hanya muncul jika statusnya "dikerjakan"
-                
+                Tables\Actions\ViewAction::make()
+                    ->label('Detail')
+                    ->color('info')
+                    ->icon('heroicon-o-eye'),
             ])
+            
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    // Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ]);
     }
