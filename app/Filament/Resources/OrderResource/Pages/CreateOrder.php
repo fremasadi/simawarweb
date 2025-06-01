@@ -169,11 +169,11 @@ class CreateOrder extends CreateRecord
             $data['status'] = 'dikerjakan';
         }
         
-        // CLEAN IMAGES DATA - Hanya ambil field photo saja
+        // CLEAN IMAGES DATA - Pastikan format JSON yang benar
         if (isset($data['images']) && is_array($data['images'])) {
             $cleanImages = [];
             foreach ($data['images'] as $imageData) {
-                if (isset($imageData['photo'])) {
+                if (isset($imageData['photo']) && !empty($imageData['photo'])) {
                     // Jika photo adalah array (dari FileUpload), ambil value pertama
                     if (is_array($imageData['photo'])) {
                         $photoValue = reset($imageData['photo']); // Ambil value pertama
@@ -186,31 +186,32 @@ class CreateOrder extends CreateRecord
                     }
                 }
             }
-            $data['images'] = $cleanImages;
-        }
-        
-        // CLEAN SIZE DATA - Pastikan size adalah objek JSON, bukan string
-        if (isset($data['size'])) {
-            if (is_array($data['size'])) {
-                // Jika sudah array, convert ke JSON object (bukan string)
-                // Tapi simpan sebagai array dulu, Laravel akan handle JSON encoding
-                $data['size'] = $data['size'];
-            } elseif (is_string($data['size'])) {
-                // Jika string, decode dulu lalu assign
-                $decodedSize = json_decode($data['size'], true);
-                $data['size'] = $decodedSize ?: [];
-            } else {
-                $data['size'] = [];
-            }
+            // Convert ke JSON string untuk disimpan
+            $data['images'] = json_encode($cleanImages);
         } else {
-            $data['size'] = [];
+            $data['images'] = json_encode([]);
         }
         
-        // Add any additional data processing here
-        $data['created_by'] = auth()->id(); // contoh: track who created
+        // CLEAN SIZE DATA - Convert ke JSON string
+        if (isset($data['size']) && is_array($data['size'])) {
+            // Filter hanya value yang tidak kosong
+            $cleanSize = array_filter($data['size'], function($value) {
+                return !empty($value) && $value !== null && $value !== '';
+            });
+            $data['size'] = json_encode($cleanSize);
+        } else {
+            $data['size'] = json_encode([]);
+        }
+        
+        // CLEAN ACCESSORIES LIST - Convert ke JSON string
+        if (isset($data['accessories_list']) && is_array($data['accessories_list'])) {
+            $data['accessories_list'] = json_encode($data['accessories_list']);
+        } else {
+            $data['accessories_list'] = json_encode([]);
+        }
         
         // Debug: Log cleaned data
-        logger('Cleaned data:', $data);
+        logger('Cleaned data before save:', $data);
         
         return parent::mutateFormDataBeforeCreate($data);
     }

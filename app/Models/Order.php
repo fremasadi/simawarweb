@@ -34,6 +34,7 @@ class Order extends Model
         'size' => 'array',
         'images' => 'array',
         'accessories_list' => 'array',
+        'deadline' => 'datetime',
     ];
 
     public function sizeModel()
@@ -62,91 +63,110 @@ class Order extends Model
     }
 
     /**
-     * Accessor untuk format images yang clean
-     * Laravel's array casting sudah handle json_decode/encode
+     * Boot method untuk memastikan data tersimpan dengan benar
      */
-    public function getImagesAttribute($value)
+    protected static function boot()
     {
-        // Jika sudah array (dari casting), langsung proses
-        if (is_array($value)) {
-            return array_map(function($item) {
-                return isset($item['photo']) ? ['photo' => $item['photo']] : $item;
-            }, $value);
-        }
+        parent::boot();
         
-        // Jika masih string, decode dulu
-        if (is_string($value) && !empty($value)) {
-            $decoded = json_decode($value, true);
-            if (is_array($decoded)) {
-                return array_map(function($item) {
-                    return isset($item['photo']) ? ['photo' => $item['photo']] : $item;
-                }, $decoded);
-            }
-        }
-        
-        return [];
-    }
-
-    /**
-     * Mutator untuk images - pastikan format clean sebelum disimpan
-     */
-    public function setImagesAttribute($value)
-    {
-        if (is_array($value)) {
-            $cleanImages = [];
-            foreach ($value as $imageData) {
-                if (isset($imageData['photo'])) {
-                    // Clean hanya photo field
-                    if (is_array($imageData['photo'])) {
-                        $photoValue = reset($imageData['photo']);
-                        if ($photoValue) {
-                            $cleanImages[] = ['photo' => $photoValue];
-                        }
-                    } else {
-                        $cleanImages[] = ['photo' => $imageData['photo']];
-                    }
+        static::saving(function ($model) {
+            // Pastikan array fields disimpan dengan benar sebagai JSON
+            if (isset($model->attributes['images']) && is_string($model->attributes['images'])) {
+                // Jika sudah string JSON, biarkan
+                $decoded = json_decode($model->attributes['images'], true);
+                if (json_last_error() === JSON_ERROR_NONE) {
+                    // Valid JSON, convert back to array for casting
+                    $model->attributes['images'] = $decoded;
                 }
             }
-            // Simpan langsung sebagai array, Laravel casting akan handle JSON encoding
-            $this->attributes['images'] = $cleanImages;
-        } else {
-            $this->attributes['images'] = $value;
-        }
+            
+            if (isset($model->attributes['size']) && is_string($model->attributes['size'])) {
+                $decoded = json_decode($model->attributes['size'], true);
+                if (json_last_error() === JSON_ERROR_NONE) {
+                    $model->attributes['size'] = $decoded;
+                }
+            }
+            
+            if (isset($model->attributes['accessories_list']) && is_string($model->attributes['accessories_list'])) {
+                $decoded = json_decode($model->attributes['accessories_list'], true);
+                if (json_last_error() === JSON_ERROR_NONE) {
+                    $model->attributes['accessories_list'] = $decoded;
+                }
+            }
+        });
     }
 
     /**
-     * Accessor untuk size - Laravel casting sudah handle ini
+     * Helper method untuk mendapatkan gambar dengan URL lengkap
      */
-    public function getSizeAttribute($value)
+    public function getImageUrlsAttribute()
     {
-        // Jika sudah array dari casting, return langsung
-        if (is_array($value)) {
-            return $value;
+        if (!is_array($this->images)) {
+            return [];
         }
-        
-        // Jika string, decode
-        if (is_string($value) && !empty($value)) {
-            $decoded = json_decode($value, true);
-            return is_array($decoded) ? $decoded : [];
-        }
-        
-        return [];
+
+        return collect($this->images)->map(function ($image) {
+            if (isset($image['photo']) && $image['photo']) {
+                return \Illuminate\Support\Facades\Storage::disk('public')->url($image['photo']);
+            }
+            return null;
+        })->filter()->values()->toArray();
     }
 
     /**
-     * Mutator untuk size - simpan sebagai array, biar Laravel casting yang handle
+     * Helper method untuk mendapatkan accessories dengan detail
      */
-    public function setSizeAttribute($value)
+    public function getAccessoriesDetailAttribute()
     {
-        if (is_array($value)) {
-            // Simpan langsung sebagai array, casting akan encode ke JSON
-            $this->attributes['size'] = $value;
-        } else if (is_string($value) && !empty($value)) {
-            // Jika string JSON, decode dulu
-            $decoded = json_decode($value, true);
-            $this->attributes['size'] = is_array($decoded) ? $decoded : [];
-        } else {
-            $this->attributes['size'] = [];
+        if (!is_array($this->accessories_list) || empty($this->accessories_list)) {
+            return collect([]);
         }
+
+        return collect($this->accessories_list)->map(function ($accessoryId) {
+            return \App\Models\Accessory::find($accessoryId);
+        })->filter()->values();
+    }
+
+    /**
+     * Scope untuk filter berdasarkan status
+     */
+    public function scopeByStatus($query, $status)
+    {
+        return $query->where('status', $status);
+    }
+
+    /**
+     * Scope untuk filter berdasarkan deadline
+     */
+    public function scopeByDeadline($query, $from = null, $to = null)
+    {
+        if ($from) {
+            $query->whereDate('deadline', '>=', $from);
+        }
+        
+        if ($to) {
+            $query->whereDate('deadline', '<=', $to);
+        }
+        
+        return $query;
+    }
+
+    /**
+     * Accessor untuk total harga termasuk accessories
+     */
+    public function getTotalPriceAttribute()
+    {
+        $basePrice = $this->price ?? 0;
+        
+        if (!is_array($this->accessories_list) || empty($this->accessories_list)) {
+            return $basePrice;
+        }
+
+        $accessoriesPrice = collect($this->accessories_list)->sum(function ($accessoryId) {
+            $accessory = \App\Models\Accessory::find($accessoryId);
+            return $accessory ? $accessory->price : 0;
+        });
+
+        return $basePrice + $accessoriesPrice;
     }
 }
