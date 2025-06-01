@@ -144,10 +144,6 @@ class OrderResource extends Resource
                                     $html .= '<h4 class="font-semibold text-gray-800 mb-2">Ukuran</h4>';
                                     $html .= '<div class="grid grid-cols-3 gap-3 text-sm">';
                                     foreach ($data['size'] as $key => $value) {
-                                        if (!is_string($key)) {
-                                            continue; // lewati yang key-nya numerik (seperti 0, 1, dst)
-                                        }
-                                    
                                         if (!empty($value)) {
                                             $label = ucwords(str_replace('_', ' ', $key));
                                             $html .= '<div class="flex justify-between bg-gray-50 px-2 py-1 rounded">';
@@ -156,7 +152,6 @@ class OrderResource extends Resource
                                             $html .= '</div>';
                                         }
                                     }
-                                    
                                     $html .= '</div>';
                                     $html .= '</div>';
                                 }
@@ -315,7 +310,9 @@ class OrderResource extends Resource
                     ->label('Nama Pemesanan')
                     ->required()
                     ->maxLength(255)
-                    ->readonly()
+                    ->readonly(function ($livewire) {
+                        return $livewire->isPreviewMode ?? false;
+                    })
                     ->disabled(function ($livewire) {
                         return $livewire->isPreviewMode ?? false;
                     }),
@@ -324,7 +321,9 @@ class OrderResource extends Resource
                     ->label('Alamat Pemesanan')
                     ->required()
                     ->maxLength(255)
-                    ->readonly()
+                    ->readonly(function ($livewire) {
+                        return $livewire->isPreviewMode ?? false;
+                    })
                     ->disabled(function ($livewire) {
                         return $livewire->isPreviewMode ?? false;
                     }),
@@ -334,7 +333,9 @@ class OrderResource extends Resource
                     ->tel()
                     ->required('No. Telefon Pemesan wajib diisi.')
                     ->maxLength(255)
-                    ->readonly()
+                    ->readonly(function ($livewire) {
+                        return $livewire->isPreviewMode ?? false;
+                    })
                     ->disabled(function ($livewire) {
                         return $livewire->isPreviewMode ?? false;
                     }),
@@ -443,12 +444,15 @@ class OrderResource extends Resource
     
                 Forms\Components\TextInput::make('price')
                     ->label('Harga')
-                    ->tel()
+                    ->numeric()
                     ->required('Harga wajib diisi.')
-                    ->maxLength(255)
                     ->disabled(function ($livewire) {
                         return $livewire->isPreviewMode ?? false;
                     }),
+    
+                // Hidden field untuk status default
+                Forms\Components\Hidden::make('status')
+                    ->default('pending'),
     
                 // Section untuk menampilkan field ukuran dinamis
                 Section::make('Ukuran')

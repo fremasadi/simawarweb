@@ -43,6 +43,9 @@ class CreateOrder extends CreateRecord
     public function togglePreview()
     {
         try {
+            // Simpan data form terlebih dahulu
+            $this->data = $this->form->getState();
+            
             // Validasi form sebelum preview
             $this->form->validate();
             
@@ -83,6 +86,8 @@ class CreateOrder extends CreateRecord
     public function backToEdit()
     {
         $this->isPreviewMode = false;
+        // Pastikan data tetap tersimpan
+        $this->data = $this->form->getState();
         $this->form->fill($this->data);
         
         Notification::make()
@@ -140,8 +145,36 @@ class CreateOrder extends CreateRecord
      */
     protected function mutateFormDataBeforeCreate(array $data): array
     {
+        // Debug: Log data sebelum create
+        logger('Data before create:', $data);
+        
         // Reset preview mode setelah save
         $this->isPreviewMode = false;
+        
+        // Pastikan semua field required ada
+        if (empty($data['name'])) {
+            throw new \Exception('Nama pemesanan tidak boleh kosong');
+        }
+        
+        if (empty($data['phone'])) {
+            throw new \Exception('No. Telepon tidak boleh kosong');
+        }
+        
+        if (empty($data['address'])) {
+            throw new \Exception('Alamat tidak boleh kosong');
+        }
+        
+        // Set default status jika belum ada
+        if (!isset($data['status'])) {
+            $data['status'] = 'pending';
+        }
+        
+        // Pastikan size adalah array atau JSON string
+        if (isset($data['size']) && is_array($data['size'])) {
+            $data['size'] = json_encode($data['size']);
+        } elseif (!isset($data['size'])) {
+            $data['size'] = json_encode([]);
+        }
         
         // Add any additional data processing here
         $data['created_by'] = auth()->id(); // contoh: track who created
@@ -198,6 +231,24 @@ class CreateOrder extends CreateRecord
     public function getTitle(): string
     {
         return $this->isPreviewMode ? 'Preview Order Baru' : 'Buat Order Baru';
+    }
+
+    /**
+     * Override create method untuk handling preview mode
+     */
+    public function create(bool $another = false): void
+    {
+        // Pastikan kita keluar dari preview mode
+        $this->isPreviewMode = false;
+        
+        // Ambil data terbaru dari form
+        $this->data = $this->form->getState();
+        
+        // Debug log
+        logger('Final data before create:', $this->data);
+        
+        // Panggil parent create
+        parent::create($another);
     }
 
     /**
