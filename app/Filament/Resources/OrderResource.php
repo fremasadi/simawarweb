@@ -33,6 +33,7 @@ use Filament\Forms\Components\ViewField;
 use Illuminate\Support\Facades\Storage;
 use Filament\Forms\Components\MultiSelect;
 use App\Models\Accessory;  // <== Import model di sini
+use Filament\Forms\Components\Actions\Action as FormAction;
 
 class OrderResource extends Resource
 {
@@ -62,6 +63,31 @@ class OrderResource extends Resource
 {
     return $form
         ->schema([
+            // Section Preview - hanya tampil saat preview mode
+            Section::make('Preview Order')
+                ->schema([
+                    Placeholder::make('preview_content')
+                        ->label('')
+                        ->content(function (Get $get, $livewire) {
+                            // Cek jika sedang dalam preview mode
+                            if (!($livewire->isPreviewMode ?? false)) {
+                                return '';
+                            }
+                            
+                            return new \Illuminate\Support\HtmlString(
+                                view('filament.resources.order-preview', [
+                                    'data' => $get('../../') ?? $get('../') ?? []
+                                ])->render()
+                            );
+                        })
+                        ->dehydrated(false)
+                ])
+                ->visible(function ($livewire) {
+                    return $livewire->isPreviewMode ?? false;
+                })
+                ->collapsible(false)
+                ->columnSpanFull(),
+
             Repeater::make('images')
                 ->label('Foto Model')
                 ->schema([
@@ -75,7 +101,10 @@ class OrderResource extends Resource
                         ->inline()
                         ->live()
                         ->columnSpanFull()
-                        ->dehydrated(false), // Jangan simpan field ini
+                        ->dehydrated(false)
+                        ->disabled(function ($livewire) {
+                            return $livewire->isPreviewMode ?? false;
+                        }),
 
                     Select::make('temp_image_model_id')
                         ->label('Pilih Model Gambar')
@@ -89,12 +118,14 @@ class OrderResource extends Resource
                         ->visible(fn (Get $get) => $get('image_source') === 'existing')
                         ->live()
                         ->placeholder('Pilih model untuk melihat preview...')
-                        ->dehydrated(false) // Jangan simpan field ini
+                        ->dehydrated(false)
+                        ->disabled(function ($livewire) {
+                            return $livewire->isPreviewMode ?? false;
+                        })
                         ->afterStateUpdated(function ($state, Set $set) {
                             if ($state) {
                                 $imageModel = \App\Models\ImageModel::find($state);
                                 if ($imageModel && $imageModel->image) {
-                                    // Set path gambar ke field photo
                                     $set('photo', $imageModel->image);
                                 }
                             } else {
@@ -105,7 +136,7 @@ class OrderResource extends Resource
                     \Filament\Forms\Components\Placeholder::make('image_preview')
                         ->label('Preview Gambar')
                         ->visible(fn (Get $get) => $get('image_source') === 'existing' && $get('temp_image_model_id'))
-                        ->dehydrated(false) // Jangan simpan field ini
+                        ->dehydrated(false)
                         ->content(function (Get $get) {
                             if ($get('temp_image_model_id')) {
                                 $imageModel = \App\Models\ImageModel::find($get('temp_image_model_id'));
@@ -147,9 +178,11 @@ class OrderResource extends Resource
                         ->previewable(true)
                         ->visible(fn (Get $get) => $get('image_source') === 'upload')
                         ->live()
+                        ->disabled(function ($livewire) {
+                            return $livewire->isPreviewMode ?? false;
+                        })
                         ->afterStateUpdated(function ($state, Set $set) {
                             if ($state) {
-                                // Reset temp field saat upload
                                 $set('temp_image_model_id', null);
                             }
                         }),
@@ -160,7 +193,10 @@ class OrderResource extends Resource
                 ->reorderable()
                 ->collapsible(false)
                 ->createItemButtonLabel('Tambah Gambar')
-                ->columns(1),
+                ->columns(1)
+                ->disabled(function ($livewire) {
+                    return $livewire->isPreviewMode ?? false;
+                }),
 
             Forms\Components\Select::make('customer_id')
                 ->label('Pilih Customer')
@@ -168,6 +204,9 @@ class OrderResource extends Resource
                 ->searchable()
                 ->required()
                 ->live()
+                ->disabled(function ($livewire) {
+                    return $livewire->isPreviewMode ?? false;
+                })
                 ->afterStateUpdated(function ($state, \Filament\Forms\Set $set) {
                     $customer = \App\Models\Customer::find($state);
                     if ($customer) {
@@ -181,20 +220,29 @@ class OrderResource extends Resource
                 ->label('Nama Pemesanan')
                 ->required()
                 ->maxLength(255)
-                ->readonly(),
+                ->readonly()
+                ->disabled(function ($livewire) {
+                    return $livewire->isPreviewMode ?? false;
+                }),
 
             Forms\Components\Textarea::make('address')
                 ->label('Alamat Pemesanan')
                 ->required()
                 ->maxLength(255)
-                ->readonly(),
+                ->readonly()
+                ->disabled(function ($livewire) {
+                    return $livewire->isPreviewMode ?? false;
+                }),
 
             Forms\Components\TextInput::make('phone')
                 ->label('No.Telefon Pemesan')
                 ->tel()
                 ->required('No. Telefon Pemesan wajib diisi.')
                 ->maxLength(255)
-                ->readonly(),
+                ->readonly()
+                ->disabled(function ($livewire) {
+                    return $livewire->isPreviewMode ?? false;
+                }),
 
             MultiSelect::make('accessories_list')
                 ->label('Pilih Accessories')
@@ -206,11 +254,17 @@ class OrderResource extends Resource
                 ->placeholder('Pilih accessories')
                 ->searchable()
                 ->columnSpanFull()
-                ->helperText('Pilih satu atau lebih accessories yang terkait dengan order'),
+                ->helperText('Pilih satu atau lebih accessories yang terkait dengan order')
+                ->disabled(function ($livewire) {
+                    return $livewire->isPreviewMode ?? false;
+                }),
             
             Forms\Components\TextInput::make('description')
                 ->label('Deskripsi')
-                ->maxLength(255),
+                ->maxLength(255)
+                ->disabled(function ($livewire) {
+                    return $livewire->isPreviewMode ?? false;
+                }),
 
             Select::make('ditugaskan_ke')
                 ->label('Ditugaskan Ke')
@@ -225,13 +279,19 @@ class OrderResource extends Resource
                 )
                 ->searchable()
                 ->preload()
-                ->required(),
+                ->required()
+                ->disabled(function ($livewire) {
+                    return $livewire->isPreviewMode ?? false;
+                }),
 
             Select::make('sizemodel_id')
                 ->label('Pilih Model Ukuran')
                 ->options(\App\Models\SizeModel::pluck('name', 'id'))
                 ->required()
                 ->live()
+                ->disabled(function ($livewire) {
+                    return $livewire->isPreviewMode ?? false;
+                })
                 ->afterStateUpdated(function ($state, Set $set, Get $get) {
                     if (!$state) return;
                     
@@ -257,6 +317,9 @@ class OrderResource extends Resource
                 ->default(1)
                 ->required()
                 ->live()
+                ->disabled(function ($livewire) {
+                    return $livewire->isPreviewMode ?? false;
+                })
                 ->afterStateUpdated(function ($state, Set $set, Get $get) {
                     $sizeModelId = $get('sizemodel_id');
                     if (!$sizeModelId) return;
@@ -278,17 +341,23 @@ class OrderResource extends Resource
                 ->required()
                 ->displayFormat('d/m/Y H:i')
                 ->format('Y-m-d H:i:s')
-                ->readonly(),
+                ->readonly()
+                ->disabled(function ($livewire) {
+                    return $livewire->isPreviewMode ?? false;
+                }),
 
             Forms\Components\TextInput::make('price')
                 ->label('Harga')
                 ->tel()
                 ->required('Harga wajib diisi.')
-                ->maxLength(255),
+                ->maxLength(255)
+                ->disabled(function ($livewire) {
+                    return $livewire->isPreviewMode ?? false;
+                }),
 
             // Section untuk menampilkan field ukuran dinamis
             Section::make('Ukuran')
-                ->schema(function (Get $get) {
+                ->schema(function (Get $get, $livewire) {
                     $sizemodelId = $get('sizemodel_id');
                     if (!$sizemodelId) {
                         return []; 
@@ -309,8 +378,11 @@ class OrderResource extends Resource
                         $fields[] = TextInput::make("size.{$safeKey}")
                             ->label($cleanFieldName)
                             ->numeric()
-                            ->required('wajib diisi.');
-                        }
+                            ->required('wajib diisi.')
+                            ->disabled(function () use ($livewire) {
+                                return $livewire->isPreviewMode ?? false;
+                            });
+                    }
 
                     return [
                         Grid::make(3)
