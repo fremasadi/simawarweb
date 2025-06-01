@@ -458,7 +458,7 @@ class OrderResource extends Resource
     
                 // Hidden field untuk status default
                 Forms\Components\Hidden::make('status')
-                    ->default('pending'),
+                    ->default('dikerjakan'),
     
                 // Section untuk menampilkan field ukuran dinamis
                 Section::make('Ukuran')
