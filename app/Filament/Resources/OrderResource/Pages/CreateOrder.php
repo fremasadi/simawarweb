@@ -9,6 +9,7 @@ use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Support\Facades\Http;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
 
 class CreateOrder extends CreateRecord
 {
@@ -50,14 +51,25 @@ class CreateOrder extends CreateRecord
             
             // Notification
             if ($this->isPreviewMode) {
-                $this->notify('success', 'Mode Preview diaktifkan. Periksa data sebelum menyimpan.');
+                Notification::make()
+                    ->success()
+                    ->title('Mode Preview diaktifkan')
+                    ->body('Periksa data sebelum menyimpan.')
+                    ->send();
             } else {
-                $this->notify('info', 'Kembali ke mode Edit.');
+                Notification::make()
+                    ->info()
+                    ->title('Kembali ke mode Edit')
+                    ->send();
             }
             
         } catch (\Illuminate\Validation\ValidationException $e) {
             // Jika validasi gagal, tampilkan error
-            $this->notify('error', 'Mohon lengkapi semua field yang wajib diisi terlebih dahulu.');
+            Notification::make()
+                ->danger()
+                ->title('Error Validasi')
+                ->body('Mohon lengkapi semua field yang wajib diisi terlebih dahulu.')
+                ->send();
             throw $e;
         }
     }
@@ -68,7 +80,10 @@ class CreateOrder extends CreateRecord
     public function backToEdit()
     {
         $this->isPreviewMode = false;
-        $this->notify('info', 'Kembali ke mode Edit.');
+        Notification::make()
+            ->info()
+            ->title('Kembali ke mode Edit')
+            ->send();
     }
 
     protected function getFormActions(): array
