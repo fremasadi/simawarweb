@@ -146,8 +146,8 @@ class OrderResource extends Resource
                                     foreach ($data['size'] as $key => $value) {
                                         if (!empty($value)) {
                                             $label = ucwords(str_replace('_', ' ', $key));
-                                            $html .= '<div class="flex justify-between bg-gray-50 px-2 py-1 rounded">';
-                                            $html .= '<span class="font-medium">' . $label . ':</span>';
+                                            // $html .= '<div class="flex justify-between bg-gray-50 px-2 py-1 rounded">';
+                                            // $html .= '<span class="font-medium">' . $label . ':</span>';
                                             $html .= '<span>' . $value . ' cm</span>';
                                             $html .= '</div>';
                                         }
