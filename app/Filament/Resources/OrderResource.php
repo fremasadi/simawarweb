@@ -34,6 +34,7 @@ use Illuminate\Support\Facades\Storage;
 use Filament\Forms\Components\MultiSelect;
 use App\Models\Accessory;  // <== Import model di sini
 use Filament\Forms\Components\Actions\Action as FormAction;
+use Filament\Forms\Components\Placeholder;
 
 class OrderResource extends Resource
 {
