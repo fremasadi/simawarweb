@@ -144,14 +144,19 @@ class OrderResource extends Resource
                                     $html .= '<h4 class="font-semibold text-gray-800 mb-2">Ukuran</h4>';
                                     $html .= '<div class="grid grid-cols-3 gap-3 text-sm">';
                                     foreach ($data['size'] as $key => $value) {
+                                        if (!is_string($key)) {
+                                            continue; // lewati yang key-nya numerik (seperti 0, 1, dst)
+                                        }
+                                    
                                         if (!empty($value)) {
                                             $label = ucwords(str_replace('_', ' ', $key));
-                                            // $html .= '<div class="flex justify-between bg-gray-50 px-2 py-1 rounded">';
-                                            // $html .= '<span class="font-medium">' . $label . ':</span>';
+                                            $html .= '<div class="flex justify-between bg-gray-50 px-2 py-1 rounded">';
+                                            $html .= '<span class="font-medium">' . $label . ':</span>';
                                             $html .= '<span>' . $value . ' cm</span>';
                                             $html .= '</div>';
                                         }
                                     }
+                                    
                                     $html .= '</div>';
                                     $html .= '</div>';
                                 }
