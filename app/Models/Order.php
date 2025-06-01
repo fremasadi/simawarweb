@@ -70,4 +70,69 @@ class Order extends Model
     return $this->hasMany(OrderBonus::class);
 }
 
+/**
+     * Accessor untuk format images yang clean
+     */
+    public function getImagesAttribute($value)
+    {
+        if (is_string($value)) {
+            $decoded = json_decode($value, true);
+            if (is_array($decoded)) {
+                // Clean format: hanya ambil photo field
+                return array_map(function($item) {
+                    return isset($item['photo']) ? ['photo' => $item['photo']] : $item;
+                }, $decoded);
+            }
+        }
+        return $value;
+    }
+
+    /**
+     * Mutator untuk images - pastikan format clean sebelum disimpan
+     */
+    public function setImagesAttribute($value)
+    {
+        if (is_array($value)) {
+            $cleanImages = [];
+            foreach ($value as $imageData) {
+                if (isset($imageData['photo'])) {
+                    // Clean hanya photo field
+                    if (is_array($imageData['photo'])) {
+                        $photoValue = reset($imageData['photo']);
+                        if ($photoValue) {
+                            $cleanImages[] = ['photo' => $photoValue];
+                        }
+                    } else {
+                        $cleanImages[] = ['photo' => $imageData['photo']];
+                    }
+                }
+            }
+            $this->attributes['images'] = json_encode($cleanImages);
+        } else {
+            $this->attributes['images'] = $value;
+        }
+    }
+
+    /**
+     * Accessor untuk size - pastikan return array
+     */
+    public function getSizeAttribute($value)
+    {
+        if (is_string($value)) {
+            return json_decode($value, true) ?: [];
+        }
+        return $value;
+    }
+
+    /**
+     * Mutator untuk size - simpan sebagai JSON object
+     */
+    public function setSizeAttribute($value)
+    {
+        if (is_array($value)) {
+            $this->attributes['size'] = json_encode($value, JSON_UNESCAPED_UNICODE);
+        } else {
+            $this->attributes['size'] = $value;
+        }
+    }
 }

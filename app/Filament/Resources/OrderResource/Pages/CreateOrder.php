@@ -169,15 +169,48 @@ class CreateOrder extends CreateRecord
             $data['status'] = 'dikerjakan';
         }
         
-        // Pastikan size adalah array atau JSON string
-        if (isset($data['size']) && is_array($data['size'])) {
-            $data['size'] = json_encode($data['size']);
-        } elseif (!isset($data['size'])) {
-            $data['size'] = json_encode([]);
+        // CLEAN IMAGES DATA - Hanya ambil field photo saja
+        if (isset($data['images']) && is_array($data['images'])) {
+            $cleanImages = [];
+            foreach ($data['images'] as $imageData) {
+                if (isset($imageData['photo'])) {
+                    // Jika photo adalah array (dari FileUpload), ambil value pertama
+                    if (is_array($imageData['photo'])) {
+                        $photoValue = reset($imageData['photo']); // Ambil value pertama
+                        if ($photoValue) {
+                            $cleanImages[] = ['photo' => $photoValue];
+                        }
+                    } else {
+                        // Jika photo adalah string langsung
+                        $cleanImages[] = ['photo' => $imageData['photo']];
+                    }
+                }
+            }
+            $data['images'] = $cleanImages;
+        }
+        
+        // CLEAN SIZE DATA - Pastikan size adalah objek JSON, bukan string
+        if (isset($data['size'])) {
+            if (is_array($data['size'])) {
+                // Jika sudah array, convert ke JSON object (bukan string)
+                // Tapi simpan sebagai array dulu, Laravel akan handle JSON encoding
+                $data['size'] = $data['size'];
+            } elseif (is_string($data['size'])) {
+                // Jika string, decode dulu lalu assign
+                $decodedSize = json_decode($data['size'], true);
+                $data['size'] = $decodedSize ?: [];
+            } else {
+                $data['size'] = [];
+            }
+        } else {
+            $data['size'] = [];
         }
         
         // Add any additional data processing here
         $data['created_by'] = auth()->id(); // contoh: track who created
+        
+        // Debug: Log cleaned data
+        logger('Cleaned data:', $data);
         
         return parent::mutateFormDataBeforeCreate($data);
     }
