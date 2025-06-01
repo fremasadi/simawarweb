@@ -49,6 +49,9 @@ class CreateOrder extends CreateRecord
             // Toggle preview mode
             $this->isPreviewMode = !$this->isPreviewMode;
             
+            // Refresh form untuk menampilkan/menyembunyikan preview section
+            $this->form->fill($this->data);
+            
             // Notification
             if ($this->isPreviewMode) {
                 Notification::make()
@@ -75,81 +78,13 @@ class CreateOrder extends CreateRecord
     }
 
     /**
-     * Get form data untuk preview dengan real-time data
-     */
-    public function getFormData(): array
-    {
-        // Ambil data dari livewire component state
-        $data = $this->data ?? [];
-        
-        // Debug log
-        if (app()->environment('local')) {
-            logger('Current Form Data:', $data);
-        }
-        
-        return $data;
-    }
-
-    /**
-     * Render preview content dengan HTML sederhana
-     */
-    public function getPreviewHtml(): string
-    {
-        if (!$this->isPreviewMode) {
-            return '';
-        }
-
-        $data = $this->getFormData();
-        
-        $html = '<div class="bg-white border rounded-lg p-6 space-y-4">';
-        $html .= '<h3 class="text-lg font-bold text-gray-900 border-b pb-2">Preview Order</h3>';
-        
-        // Customer Info
-        $html .= '<div class="grid grid-cols-2 gap-4">';
-        $html .= '<div>';
-        $html .= '<h4 class="font-semibold text-gray-800 mb-2">Informasi Customer</h4>';
-        $html .= '<p><strong>Nama:</strong> ' . ($data['name'] ?? '-') . '</p>';
-        $html .= '<p><strong>Telepon:</strong> ' . ($data['phone'] ?? '-') . '</p>';
-        $html .= '<p><strong>Alamat:</strong> ' . ($data['address'] ?? '-') . '</p>';
-        $html .= '</div>';
-        
-        // Order Info
-        $html .= '<div>';
-        $html .= '<h4 class="font-semibold text-gray-800 mb-2">Detail Order</h4>';
-        $html .= '<p><strong>Jumlah:</strong> ' . ($data['quantity'] ?? 1) . ' pcs</p>';
-        $html .= '<p><strong>Harga:</strong> Rp ' . number_format($data['price'] ?? 0, 0, ',', '.') . '</p>';
-        
-        if (!empty($data['deadline'])) {
-            $html .= '<p><strong>Deadline:</strong> ' . \Carbon\Carbon::parse($data['deadline'])->format('d/m/Y H:i') . '</p>';
-        }
-        
-        if (!empty($data['description'])) {
-            $html .= '<p><strong>Deskripsi:</strong> ' . $data['description'] . '</p>';
-        }
-        $html .= '</div>';
-        $html .= '</div>';
-        
-        // Total
-        $html .= '<div class="border-t pt-4">';
-        $html .= '<div class="bg-gray-100 rounded p-3">';
-        $html .= '<div class="flex justify-between items-center">';
-        $html .= '<span class="font-semibold">Total:</span>';
-        $html .= '<span class="text-xl font-bold text-green-600">Rp ' . number_format($data['price'] ?? 0, 0, ',', '.') . '</span>';
-        $html .= '</div>';
-        $html .= '</div>';
-        $html .= '</div>';
-        
-        $html .= '</div>';
-        
-        return $html;
-    }
-
-    /**
      * Method untuk kembali ke mode edit
      */
     public function backToEdit()
     {
         $this->isPreviewMode = false;
+        $this->form->fill($this->data);
+        
         Notification::make()
             ->info()
             ->title('Kembali ke mode Edit')
@@ -165,7 +100,6 @@ class CreateOrder extends CreateRecord
                 ->icon($this->isPreviewMode ? 'heroicon-o-pencil-square' : 'heroicon-o-eye')
                 ->color($this->isPreviewMode ? 'warning' : 'info')
                 ->action('togglePreview')
-                ->visible(fn () => !$this->isPreviewMode)
                 ->keyBindings(['ctrl+p', 'cmd+p']),
                 
             // Tombol Kembali (hanya tampil saat preview)
@@ -274,32 +208,5 @@ class CreateOrder extends CreateRecord
         return $this->isPreviewMode 
             ? ['class' => 'preview-mode'] 
             : [];
-    }
-
-    /**
-     * Override form untuk menambahkan preview section
-     */
-    public function form(\Filament\Forms\Form $form): \Filament\Forms\Form
-    {
-        $baseForm = $this->getResource()::form($form);
-        
-        // Jika preview mode, tambahkan preview section
-        if ($this->isPreviewMode) {
-            $schema = $baseForm->getSchema();
-            
-            $schema[] = \Filament\Forms\Components\Section::make('Preview Order')
-                ->description('Periksa kembali data order Anda sebelum menyimpan')
-                ->schema([
-                    \Filament\Forms\Components\Placeholder::make('preview')
-                        ->content(fn () => new \Illuminate\Support\HtmlString($this->getPreviewHtml()))
-                        ->columnSpanFull()
-                ])
-                ->columnSpanFull()
-                ->collapsible(false);
-                
-            $baseForm->schema($schema);
-        }
-        
-        return $baseForm;
     }
 }
