@@ -34,7 +34,6 @@ class Order extends Model
         'size' => 'array',
         'images' => 'array',
         'accessories_list' => 'array',
-
     ];
 
     public function sizeModel()
@@ -53,38 +52,39 @@ class Order extends Model
     }
 
     public function imageModels()
-{
-    return $this->belongsToMany(ImageModel::class, 'order_images');
-}
-
-    protected function images(): Attribute
     {
-        return Attribute::make(
-            get: fn ($value) => $value ? json_decode($value, true) : [],
-            set: fn ($value) => is_array($value) ? json_encode($value) : $value,
-        );
+        return $this->belongsToMany(ImageModel::class, 'order_images');
     }
 
     public function bonuses()
-{
-    return $this->hasMany(OrderBonus::class);
-}
+    {
+        return $this->hasMany(OrderBonus::class);
+    }
 
-/**
+    /**
      * Accessor untuk format images yang clean
+     * Laravel's array casting sudah handle json_decode/encode
      */
     public function getImagesAttribute($value)
     {
-        if (is_string($value)) {
+        // Jika sudah array (dari casting), langsung proses
+        if (is_array($value)) {
+            return array_map(function($item) {
+                return isset($item['photo']) ? ['photo' => $item['photo']] : $item;
+            }, $value);
+        }
+        
+        // Jika masih string, decode dulu
+        if (is_string($value) && !empty($value)) {
             $decoded = json_decode($value, true);
             if (is_array($decoded)) {
-                // Clean format: hanya ambil photo field
                 return array_map(function($item) {
                     return isset($item['photo']) ? ['photo' => $item['photo']] : $item;
                 }, $decoded);
             }
         }
-        return $value;
+        
+        return [];
     }
 
     /**
@@ -107,32 +107,46 @@ class Order extends Model
                     }
                 }
             }
-            $this->attributes['images'] = json_encode($cleanImages);
+            // Simpan langsung sebagai array, Laravel casting akan handle JSON encoding
+            $this->attributes['images'] = $cleanImages;
         } else {
             $this->attributes['images'] = $value;
         }
     }
 
     /**
-     * Accessor untuk size - pastikan return array
+     * Accessor untuk size - Laravel casting sudah handle ini
      */
     public function getSizeAttribute($value)
     {
-        if (is_string($value)) {
-            return json_decode($value, true) ?: [];
+        // Jika sudah array dari casting, return langsung
+        if (is_array($value)) {
+            return $value;
         }
-        return $value;
+        
+        // Jika string, decode
+        if (is_string($value) && !empty($value)) {
+            $decoded = json_decode($value, true);
+            return is_array($decoded) ? $decoded : [];
+        }
+        
+        return [];
     }
 
     /**
-     * Mutator untuk size - simpan sebagai JSON object
+     * Mutator untuk size - simpan sebagai array, biar Laravel casting yang handle
      */
     public function setSizeAttribute($value)
     {
         if (is_array($value)) {
-            $this->attributes['size'] = json_encode($value, JSON_UNESCAPED_UNICODE);
-        } else {
+            // Simpan langsung sebagai array, casting akan encode ke JSON
             $this->attributes['size'] = $value;
+        } else if (is_string($value) && !empty($value)) {
+            // Jika string JSON, decode dulu
+            $decoded = json_decode($value, true);
+            $this->attributes['size'] = is_array($decoded) ? $decoded : [];
+        } else {
+            $this->attributes['size'] = [];
         }
     }
 }
