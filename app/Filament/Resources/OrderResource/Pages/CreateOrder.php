@@ -75,40 +75,73 @@ class CreateOrder extends CreateRecord
     }
 
     /**
-     * Get form data untuk preview
+     * Get form data untuk preview dengan real-time data
      */
     public function getFormData(): array
     {
-        return $this->form->getState();
+        // Ambil data dari livewire component state
+        $data = $this->data ?? [];
+        
+        // Debug log
+        if (app()->environment('local')) {
+            logger('Current Form Data:', $data);
+        }
+        
+        return $data;
     }
 
     /**
-     * Render preview content
+     * Render preview content dengan HTML sederhana
      */
-    public function renderPreview()
+    public function getPreviewHtml(): string
     {
         if (!$this->isPreviewMode) {
-            return null;
+            return '';
         }
 
         $data = $this->getFormData();
         
-        // Ensure all required keys exist with default values
-        $data = array_merge([
-            'name' => '',
-            'phone' => '',
-            'address' => '',
-            'quantity' => 1,
-            'price' => 0,
-            'deadline' => null,
-            'description' => '',
-            'images' => [],
-            'accessories_list' => [],
-            'size' => [],
-            'ditugaskan_ke' => null,
-        ], $data);
-
-        return view('filament.resources.order-preview', compact('data'));
+        $html = '<div class="bg-white border rounded-lg p-6 space-y-4">';
+        $html .= '<h3 class="text-lg font-bold text-gray-900 border-b pb-2">Preview Order</h3>';
+        
+        // Customer Info
+        $html .= '<div class="grid grid-cols-2 gap-4">';
+        $html .= '<div>';
+        $html .= '<h4 class="font-semibold text-gray-800 mb-2">Informasi Customer</h4>';
+        $html .= '<p><strong>Nama:</strong> ' . ($data['name'] ?? '-') . '</p>';
+        $html .= '<p><strong>Telepon:</strong> ' . ($data['phone'] ?? '-') . '</p>';
+        $html .= '<p><strong>Alamat:</strong> ' . ($data['address'] ?? '-') . '</p>';
+        $html .= '</div>';
+        
+        // Order Info
+        $html .= '<div>';
+        $html .= '<h4 class="font-semibold text-gray-800 mb-2">Detail Order</h4>';
+        $html .= '<p><strong>Jumlah:</strong> ' . ($data['quantity'] ?? 1) . ' pcs</p>';
+        $html .= '<p><strong>Harga:</strong> Rp ' . number_format($data['price'] ?? 0, 0, ',', '.') . '</p>';
+        
+        if (!empty($data['deadline'])) {
+            $html .= '<p><strong>Deadline:</strong> ' . \Carbon\Carbon::parse($data['deadline'])->format('d/m/Y H:i') . '</p>';
+        }
+        
+        if (!empty($data['description'])) {
+            $html .= '<p><strong>Deskripsi:</strong> ' . $data['description'] . '</p>';
+        }
+        $html .= '</div>';
+        $html .= '</div>';
+        
+        // Total
+        $html .= '<div class="border-t pt-4">';
+        $html .= '<div class="bg-gray-100 rounded p-3">';
+        $html .= '<div class="flex justify-between items-center">';
+        $html .= '<span class="font-semibold">Total:</span>';
+        $html .= '<span class="text-xl font-bold text-green-600">Rp ' . number_format($data['price'] ?? 0, 0, ',', '.') . '</span>';
+        $html .= '</div>';
+        $html .= '</div>';
+        $html .= '</div>';
+        
+        $html .= '</div>';
+        
+        return $html;
     }
 
     /**
@@ -244,17 +277,29 @@ class CreateOrder extends CreateRecord
     }
 
     /**
-     * Custom view for the page when in preview mode
+     * Override form untuk menambahkan preview section
      */
-    public function render(): \Illuminate\Contracts\View\View
+    public function form(\Filament\Forms\Form $form): \Filament\Forms\Form
     {
+        $baseForm = $this->getResource()::form($form);
+        
+        // Jika preview mode, tambahkan preview section
         if ($this->isPreviewMode) {
-            return view('filament.resources.create-order-with-preview', [
-                'record' => $this->record,
-                'previewContent' => $this->renderPreview(),
-            ]);
+            $schema = $baseForm->getSchema();
+            
+            $schema[] = \Filament\Forms\Components\Section::make('Preview Order')
+                ->description('Periksa kembali data order Anda sebelum menyimpan')
+                ->schema([
+                    \Filament\Forms\Components\Placeholder::make('preview')
+                        ->content(fn () => new \Illuminate\Support\HtmlString($this->getPreviewHtml()))
+                        ->columnSpanFull()
+                ])
+                ->columnSpanFull()
+                ->collapsible(false);
+                
+            $baseForm->schema($schema);
         }
-
-        return parent::render();
+        
+        return $baseForm;
     }
 }
