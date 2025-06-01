@@ -46,11 +46,15 @@
                 <div class="flex justify-between">
                     <span class="font-medium text-gray-600">Deadline:</span>
                     <span class="text-gray-900">
-                        {{ $data['deadline'] ? \Carbon\Carbon::parse($data['deadline'])->format('d/m/Y H:i') : '-' }}
+                        @if(!empty($data['deadline']))
+                            {{ \Carbon\Carbon::parse($data['deadline'])->format('d/m/Y H:i') }}
+                        @else
+                            -
+                        @endif
                     </span>
                 </div>
                 
-                @if($data['description'])
+                @if(!empty($data['description']))
                 <div class="flex justify-between items-start">
                     <span class="font-medium text-gray-600">Deskripsi:</span>
                     <span class="text-gray-900 text-right max-w-xs">{{ $data['description'] }}</span>
@@ -61,13 +65,13 @@
     </div>
 
     {{-- Gambar/Foto --}}
-    @if(isset($data['images']) && count($data['images']) > 0)
+    @if(!empty($data['images']) && is_array($data['images']) && count($data['images']) > 0)
     <div class="space-y-4">
         <h3 class="text-lg font-semibold text-gray-800 border-b pb-2">Gambar/Foto Model</h3>
         
         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             @foreach($data['images'] as $index => $image)
-                @if(isset($image['photo']) && $image['photo'])
+                @if(is_array($image) && isset($image['photo']) && !empty($image['photo']))
                     <div class="border rounded-lg p-3 bg-gray-50">
                         <img src="{{ Storage::disk('public')->url($image['photo']) }}" 
                              alt="Gambar {{ $index + 1 }}" 
@@ -81,14 +85,19 @@
     @endif
 
     {{-- Accessories --}}
-    @if(isset($data['accessories_list']) && count($data['accessories_list']) > 0)
+    @if(!empty($data['accessories_list']) && is_array($data['accessories_list']) && count($data['accessories_list']) > 0)
     <div class="space-y-4">
         <h3 class="text-lg font-semibold text-gray-800 border-b pb-2">Accessories</h3>
         
         <div class="space-y-2">
             @php
-                $accessories = \App\Models\Accessory::whereIn('id', $data['accessories_list'])->get();
-                $totalAccessoryPrice = $accessories->sum('price');
+                try {
+                    $accessories = \App\Models\Accessory::whereIn('id', $data['accessories_list'])->get();
+                    $totalAccessoryPrice = $accessories->sum('price');
+                } catch (\Exception $e) {
+                    $accessories = collect();
+                    $totalAccessoryPrice = 0;
+                }
             @endphp
             
             @foreach($accessories as $accessory)
@@ -109,13 +118,13 @@
     @endif
 
     {{-- Ukuran --}}
-    @if(isset($data['size']) && count($data['size']) > 0)
+    @if(!empty($data['size']) && is_array($data['size']) && count($data['size']) > 0)
     <div class="space-y-4">
         <h3 class="text-lg font-semibold text-gray-800 border-b pb-2">Ukuran</h3>
         
         <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
             @foreach($data['size'] as $key => $value)
-                @if($value)
+                @if(!empty($value))
                     <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                         <span class="font-medium text-gray-700 capitalize">{{ str_replace('_', ' ', $key) }}:</span>
                         <span class="text-gray-900 font-semibold">{{ $value }}</span>
@@ -127,18 +136,22 @@
     @endif
 
     {{-- Ditugaskan Ke --}}
-    @if(isset($data['ditugaskan_ke']))
+    @if(!empty($data['ditugaskan_ke']))
     <div class="space-y-4">
         <h3 class="text-lg font-semibold text-gray-800 border-b pb-2">Assignment</h3>
         
         <div class="p-4 bg-green-50 rounded-lg border border-green-200">
             @php
-                $user = \App\Models\User::find($data['ditugaskan_ke']);
+                try {
+                    $user = \App\Models\User::find($data['ditugaskan_ke']);
+                } catch (\Exception $e) {
+                    $user = null;
+                }
             @endphp
             <div class="flex items-center space-x-3">
                 <div class="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
                     <span class="text-white font-semibold text-sm">
-                        {{ substr($user->name ?? '', 0, 2) }}
+                        {{ $user ? substr($user->name, 0, 2) : '??' }}
                     </span>
                 </div>
                 <div>
@@ -153,17 +166,22 @@
     {{-- Total Summary --}}
     <div class="border-t pt-4">
         <div class="bg-gray-100 rounded-lg p-4">
+            @php
+                $basePrice = $data['price'] ?? 0;
+                $accessoryPrice = $totalAccessoryPrice ?? 0;
+                $totalPrice = $basePrice + $accessoryPrice;
+            @endphp
             <div class="flex justify-between items-center">
                 <span class="text-lg font-semibold text-gray-800">Total Keseluruhan:</span>
                 <span class="text-2xl font-bold text-green-600">
-                    Rp {{ number_format(($data['price'] ?? 0) + ($totalAccessoryPrice ?? 0), 0, ',', '.') }}
+                    Rp {{ number_format($totalPrice, 0, ',', '.') }}
                 </span>
             </div>
-            @if(isset($totalAccessoryPrice) && $totalAccessoryPrice > 0)
+            @if($accessoryPrice > 0)
                 <div class="mt-2 text-sm text-gray-600">
-                    <span>Harga Dasar: Rp {{ number_format($data['price'] ?? 0, 0, ',', '.') }}</span>
+                    <span>Harga Dasar: Rp {{ number_format($basePrice, 0, ',', '.') }}</span>
                     <span class="mx-2">+</span>
-                    <span>Accessories: Rp {{ number_format($totalAccessoryPrice, 0, ',', '.') }}</span>
+                    <span>Accessories: Rp {{ number_format($accessoryPrice, 0, ',', '.') }}</span>
                 </div>
             @endif
         </div>

@@ -75,6 +75,43 @@ class CreateOrder extends CreateRecord
     }
 
     /**
+     * Get form data untuk preview
+     */
+    public function getFormData(): array
+    {
+        return $this->form->getState();
+    }
+
+    /**
+     * Render preview content
+     */
+    public function renderPreview()
+    {
+        if (!$this->isPreviewMode) {
+            return null;
+        }
+
+        $data = $this->getFormData();
+        
+        // Ensure all required keys exist with default values
+        $data = array_merge([
+            'name' => '',
+            'phone' => '',
+            'address' => '',
+            'quantity' => 1,
+            'price' => 0,
+            'deadline' => null,
+            'description' => '',
+            'images' => [],
+            'accessories_list' => [],
+            'size' => [],
+            'ditugaskan_ke' => null,
+        ], $data);
+
+        return view('filament.resources.order-preview', compact('data'));
+    }
+
+    /**
      * Method untuk kembali ke mode edit
      */
     public function backToEdit()
@@ -204,5 +241,20 @@ class CreateOrder extends CreateRecord
         return $this->isPreviewMode 
             ? ['class' => 'preview-mode'] 
             : [];
+    }
+
+    /**
+     * Custom view for the page when in preview mode
+     */
+    public function render(): \Illuminate\Contracts\View\View
+    {
+        if ($this->isPreviewMode) {
+            return view('filament.resources.create-order-with-preview', [
+                'record' => $this->record,
+                'previewContent' => $this->renderPreview(),
+            ]);
+        }
+
+        return parent::render();
     }
 }
