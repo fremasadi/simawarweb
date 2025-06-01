@@ -166,7 +166,7 @@ class CreateOrder extends CreateRecord
         
         // Set default status jika belum ada
         if (!isset($data['status'])) {
-            $data['status'] = 'pending';
+            $data['status'] = 'dikerjakan';
         }
         
         // Pastikan size adalah array atau JSON string
