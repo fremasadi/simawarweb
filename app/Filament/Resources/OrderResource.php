@@ -288,9 +288,13 @@ class OrderResource extends Resource
                         return $livewire->isPreviewMode ?? false;
                     }),
     
-                Forms\Components\Select::make('customer_id')
+                    Select::make('customer_id')
                     ->label('Pilih Customer')
-                    ->options(\App\Models\Customer::all()->pluck('name', 'id'))
+                    ->options(
+                        \App\Models\Customer::all()->mapWithKeys(function ($customer) {
+                            return [$customer->id => "[ID: {$customer->id}] {$customer->name}"];
+                        })
+                    )
                     ->searchable()
                     ->required()
                     ->live()
@@ -305,6 +309,7 @@ class OrderResource extends Resource
                             $set('address', $customer->address);
                         }
                     }),
+                
                 
                 Forms\Components\TextInput::make('name')
                     ->label('Nama Pemesanan')
