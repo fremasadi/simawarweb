@@ -572,12 +572,143 @@ class OrderResource extends Resource
                     }),
             ])
             
-            ->actions([
-                Tables\Actions\ViewAction::make()
-                    ->label('Detail')
-                    ->color('info')
-                    ->icon('heroicon-o-eye'),
-            ])
+            // Tambahkan ini di bagian actions dalam method table()
+// Atau jika ingin langsung dengan HTML inline:
+->actions([
+    Tables\Actions\Action::make('view')
+        ->label('Detail')
+        ->color('info')
+        ->icon('heroicon-o-eye')
+        ->modalHeading('Detail Pesanan')
+        ->modalWidth('7xl')
+        ->modalContent(function (Order $record) {
+            $html = '<div class="bg-white p-6 space-y-6">';
+            
+            // Header
+            $html .= '<div class="border-b pb-4 mb-6">';
+            $html .= '<h2 class="text-2xl font-bold text-gray-900">Pesanan #' . $record->id . '</h2>';
+            $html .= '<p class="text-gray-600 mt-1">Status: <span class="font-semibold text-blue-600">' . ucfirst($record->status) . '</span></p>';
+            $html .= '</div>';
+            
+            // Images Section
+            if ($record->images && count($record->images) > 0) {
+                $html .= '<div class="mb-6">';
+                $html .= '<h3 class="text-lg font-semibold text-gray-800 mb-3">Foto Model</h3>';
+                $html .= '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">';
+                
+                foreach ($record->images as $image) {
+                    if ($image['photo']) {
+                        $imageUrl = \Illuminate\Support\Facades\Storage::disk('public')->url($image['photo']);
+                        $html .= '<div class="border rounded-lg overflow-hidden shadow-sm">';
+                        $html .= '<img src="' . $imageUrl . '" alt="Foto Model" class="w-full h-48 object-cover">';
+                        $html .= '<div class="p-2 bg-gray-50">';
+                        $html .= '<a href="' . $imageUrl . '" target="_blank" class="text-sm text-blue-600 hover:underline">Lihat Ukuran Penuh</a>';
+                        $html .= '</div>';
+                        $html .= '</div>';
+                    }
+                }
+                $html .= '</div>';
+                $html .= '</div>';
+            }
+            
+            // Customer & Order Info Grid
+            $html .= '<div class="grid grid-cols-1 md:grid-cols-2 gap-6">';
+            
+            // Customer Info
+            $html .= '<div class="bg-gray-50 rounded-lg p-4">';
+            $html .= '<h3 class="text-lg font-semibold text-gray-800 mb-3 border-b pb-2">Informasi Customer</h3>';
+            $html .= '<div class="space-y-2">';
+            $html .= '<div class="flex flex-col"><span class="text-sm font-medium text-gray-600">Nama:</span><span class="font-medium">' . ($record->name ?? '-') . '</span></div>';
+            $html .= '<div class="flex flex-col"><span class="text-sm font-medium text-gray-600">No. Telepon:</span><span class="font-medium">' . ($record->phone ?? '-') . '</span></div>';
+            $html .= '<div class="flex flex-col"><span class="text-sm font-medium text-gray-600">Alamat:</span><span class="font-medium">' . ($record->address ?? '-') . '</span></div>';
+            $html .= '</div>';
+            $html .= '</div>';
+            
+            // Order Info
+            $html .= '<div class="bg-blue-50 rounded-lg p-4">';
+            $html .= '<h3 class="text-lg font-semibold text-gray-800 mb-3 border-b pb-2">Detail Pesanan</h3>';
+            $html .= '<div class="space-y-2">';
+            $html .= '<div class="flex flex-col"><span class="text-sm font-medium text-gray-600">Jumlah:</span><span class="font-medium">' . ($record->quantity ?? 1) . ' pcs</span></div>';
+            $html .= '<div class="flex flex-col"><span class="text-sm font-medium text-gray-600">Harga:</span><span class="font-medium text-green-600">Rp ' . number_format($record->price ?? 0, 0, ',', '.') . '</span></div>';
+            
+            if ($record->deadline) {
+                $html .= '<div class="flex flex-col"><span class="text-sm font-medium text-gray-600">Deadline:</span><span class="font-medium">' . \Carbon\Carbon::parse($record->deadline)->format('d/m/Y H:i') . '</span></div>';
+            }
+            
+            if ($record->description) {
+                $html .= '<div class="flex flex-col"><span class="text-sm font-medium text-gray-600">Deskripsi:</span><span class="font-medium">' . $record->description . '</span></div>';
+            }
+            
+            if ($record->user) {
+                $html .= '<div class="flex flex-col"><span class="text-sm font-medium text-gray-600">Ditugaskan Ke:</span><span class="font-medium">' . $record->user->name . '</span></div>';
+            }
+            
+            if ($record->sizeModel) {
+                $html .= '<div class="flex flex-col"><span class="text-sm font-medium text-gray-600">Model Ukuran:</span><span class="font-medium">' . $record->sizeModel->name . '</span></div>';
+            }
+            
+            $html .= '</div>';
+            $html .= '</div>';
+            
+            $html .= '</div>'; // End grid
+            
+            // Accessories
+            if ($record->accessories_list && is_array($record->accessories_list) && count($record->accessories_list) > 0) {
+                $html .= '<div class="bg-yellow-50 rounded-lg p-4">';
+                $html .= '<h3 class="text-lg font-semibold text-gray-800 mb-3">Accessories</h3>';
+                $html .= '<div class="flex flex-wrap gap-2">';
+                foreach ($record->accessories_list as $accessoryId) {
+                    $accessory = \App\Models\Accessory::find($accessoryId);
+                    if ($accessory) {
+                        $html .= '<span class="bg-yellow-200 text-yellow-800 px-3 py-1 rounded-full text-sm font-medium">';
+                        $html .= $accessory->name . ' (Rp ' . number_format($accessory->price, 0, ',', '.') . ')';
+                        $html .= '</span>';
+                    }
+                }
+                $html .= '</div>';
+                $html .= '</div>';
+            }
+            
+            // Size Details
+            if ($record->size && is_array($record->size) && count(array_filter($record->size)) > 0) {
+                $html .= '<div class="bg-green-50 rounded-lg p-4">';
+                $html .= '<h3 class="text-lg font-semibold text-gray-800 mb-3">Detail Ukuran</h3>';
+                $html .= '<div class="grid grid-cols-2 md:grid-cols-3 gap-4">';
+                foreach ($record->size as $key => $value) {
+                    if (!empty($value)) {
+                        $label = ucwords(str_replace('_', ' ', $key));
+                        $html .= '<div class="bg-white border border-green-200 rounded-lg p-3">';
+                        $html .= '<div class="text-sm font-medium text-gray-600">' . $label . '</div>';
+                        $html .= '<div class="text-lg font-semibold text-green-700">' . $value . ' cm</div>';
+                        $html .= '</div>';
+                    }
+                }
+                $html .= '</div>';
+                $html .= '</div>';
+            }
+            
+            // Timeline
+            $html .= '<div class="bg-gray-50 rounded-lg p-4">';
+            $html .= '<h3 class="text-lg font-semibold text-gray-800 mb-3">Timeline</h3>';
+            $html .= '<div class="space-y-2 text-sm">';
+            $html .= '<div class="flex justify-between"><span class="text-gray-600">Dibuat:</span><span class="font-medium">' . $record->created_at->format('d/m/Y H:i') . '</span></div>';
+            if ($record->updated_at != $record->created_at) {
+                $html .= '<div class="flex justify-between"><span class="text-gray-600">Terakhir Diupdate:</span><span class="font-medium">' . $record->updated_at->format('d/m/Y H:i') . '</span></div>';
+            }
+            $html .= '</div>';
+            $html .= '</div>';
+            
+            $html .= '</div>'; // End main container
+            
+            return new \Illuminate\Support\HtmlString($html);
+        })
+        ->modalActions([
+            Tables\Actions\Action::make('close')
+                ->label('Tutup')
+                ->color('gray')
+                ->close(),
+        ]),
+])
             
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
