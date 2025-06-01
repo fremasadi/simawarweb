@@ -35,6 +35,7 @@ use Filament\Forms\Components\MultiSelect;
 use App\Models\Accessory;  // <== Import model di sini
 use Filament\Forms\Components\Actions\Action as FormAction;
 use Filament\Forms\Components\Placeholder;
+use Filament\Tables\Filters\Filter;
 
 class OrderResource extends Resource
 {
@@ -542,8 +543,35 @@ class OrderResource extends Resource
             ])
             ->defaultSort('created_at', 'desc')
             ->filters([
-                //
+                // Filter Nama Pemesan
+                Tables\Filters\Filter::make('name')
+                    ->form([
+                        Forms\Components\TextInput::make('name')
+                            ->label('Cari Nama Pemesan'),
+                    ])
+                    ->query(function ($query, array $data) {
+                        return $query->when($data['name'], fn ($q) => 
+                            $q->where('name', 'like', '%' . $data['name'] . '%')
+                        );
+                    }),
+            
+                // Filter Tanggal Deadline
+                Tables\Filters\Filter::make('deadline')
+                    ->form([
+                        Forms\Components\DatePicker::make('from')->label('Dari'),
+                        Forms\Components\DatePicker::make('until')->label('Sampai'),
+                    ])
+                    ->query(function ($query, array $data) {
+                        return $query
+                            ->when($data['from'], fn ($q, $date) => 
+                                $q->whereDate('deadline', '>=', $date)
+                            )
+                            ->when($data['until'], fn ($q, $date) => 
+                                $q->whereDate('deadline', '<=', $date)
+                            );
+                    }),
             ])
+            
             ->actions([
                 Tables\Actions\ViewAction::make()
                     ->label('Detail')
