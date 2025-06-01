@@ -6,7 +6,10 @@ use App\Filament\Resources\OrderResource;
 use Filament\Actions;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Support\Facades\Http;
-use Filament\Pages\Actions\Action;
+use Filament\Forms\Components\Section;
+use Filament\Forms\Components\TextInput;
+use Filament\Actions\Modal\Actions\ModalAction;
+use Filament\Actions\Modal\Actions\CloseAction;
 
 class CreateOrder extends CreateRecord
 {
@@ -37,25 +40,29 @@ class CreateOrder extends CreateRecord
     }
 
     protected function getFormActions(): array
+    {
+        return [
+            $this->getCreateFormAction()
+                ->label('Simpan'),
+        ];
+    }
+
+    protected function getModals(): array
 {
     return [
-        Action::make('preview')
-    ->label('Preview')
-    ->color('secondary')
-    ->action('previewOrder')
-    ->icon('heroicon-m-eye'),
+        Action::make('open-preview-modal')
+            ->label('Preview Data')
+            ->modalHeading('Preview Data Pemesanan')
+            ->modalSubmitAction(false)
+            ->modalCancelAction(
+                CloseAction::make()->label('Tutup')
+            )
+            ->modalContent(function () {
+                $data = $this->form->getState();
 
-        $this->getCreateFormAction()
-            ->label('Simpan'),
+                return view('filament.modals.preview-order', compact('data'));
+            }),
     ];
-}
-
-
-    public function previewOrder()
-{
-    $data = $this->form->getState();
-
-    $this->dispatch('open-preview-modal', data: $data);
 }
 
 
