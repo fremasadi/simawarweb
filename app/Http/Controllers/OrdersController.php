@@ -251,42 +251,41 @@ public function completeOrder(Request $request, $id)
     $order = Order::where('id', $id)
         ->where('ditugaskan_ke', $user->id)
         ->where('status', 'dikerjakan')
-        ->first();
+        ->firstOrFail(); // Gunakan firstOrFail agar error 404 jika tidak ketemu
 
     // Tandai order selesai
     $order->status = 'selesai';
     $order->save();
 
-    $bonus = 0.15 * floatval($order->price); 
-    $today = Carbon::now()->toDateString();
+    $bonus = 0.15 * floatval($order->price);
 
-    DB::transaction(function () use ($user, $bonus, $today, $order) {
-        // Cari salary setting pertama
-        $salarySetting = \App\Models\SalarySetting::first();
-    
-        // Hitung pay date ke bulan berikutnya
-        $payDate = Carbon::now()->addMonth()->startOfDay()->toDateString();
-    
+    DB::transaction(function () use ($user, $bonus, $order) {
+        // Ambil pengaturan gaji
+        $salarySetting = \App\Models\SalarySetting::firstOrFail();
+
+        // Set tanggal gajian ke tanggal 2 bulan depan
+        $payDate = Carbon::now()->addMonth()->day(2)->toDateString();
+
         $salary = Salary::where('user_id', $user->id)
-            ->where('pay_date', $payDate) // Ganti dari $today ke $payDate
+            ->where('pay_date', $payDate)
             ->first();
-    
+
         if (!$salary) {
+            $baseSalary = $salarySetting->salary;
             $salary = Salary::create([
-                'user_id'             => $user->id,
-                'salary_setting_id'   => $salarySetting->id,
-                'base_salary'         => $salarySetting->salary,
-                'total_salary'        => $bonus,
-                'total_deduction'     => 0,
-                'status'              => 'pending',
-                'pay_date'            => $payDate,
+                'user_id'           => $user->id,
+                'salary_setting_id' => $salarySetting->id,
+                'base_salary'       => $baseSalary,
+                'total_salary'      => $baseSalary + $bonus,
+                'total_deduction'   => 0,
+                'status'            => 'pending',
+                'pay_date'          => $payDate,
             ]);
         } else {
             $salary->total_salary += $bonus;
             $salary->save();
         }
-    
-        // Simpan riwayat bonus
+
         OrderBonus::create([
             'order_id'     => $order->id,
             'user_id'      => $user->id,
@@ -294,9 +293,8 @@ public function completeOrder(Request $request, $id)
             'bonus_amount' => $bonus,
         ]);
     });
-    
 
-    // === Kirim WA ===
+    // Kirim notifikasi WA
     try {
         $response = Http::withHeaders([
             'Authorization' => 'R5uHqhjeppTQbDefuzxY',
@@ -316,9 +314,10 @@ public function completeOrder(Request $request, $id)
     return response()->json([
         'success' => true,
         'message' => 'Pesanan berhasil diselesaikan dan bonus ditambahkan.',
-        'data'    => $order->toArray(), // 🔥 tambahkan toArray()
+        'data'    => $order->toArray(),
     ]);
 }
+
 
 
 }
