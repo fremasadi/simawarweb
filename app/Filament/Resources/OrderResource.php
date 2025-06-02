@@ -369,22 +369,23 @@ class OrderResource extends Resource
                     }),
     
                     Select::make('ditugaskan_ke')
-                    ->label('Ditugaskan Ke')
-                    ->relationship(
-                        name: 'user',
-                        titleAttribute: 'name',
-                        modifyQueryUsing: fn (Builder $query) => $query
-                            ->where('role', 'karyawan')
-                            ->whereDoesntHave('orders', function (Builder $subQuery) {
-                                $subQuery->where('status', 'dikerjakan');
-                            }, '>', 2), // HANYA jika jumlah > 1 yang dikerjakan
-                    )
-                    ->searchable()
-                    ->preload()
-                    ->required()
-                    ->disabled(function ($livewire) {
-                        return $livewire->isPreviewMode ?? false;
-                    }),
+                ->label('Ditugaskan Ke')
+                ->relationship(
+                    name: 'user',
+                    titleAttribute: 'name',
+                    modifyQueryUsing: fn (Builder $query) => $query
+                        ->where('role', 'karyawan')
+                        ->whereHas('orders', function (Builder $subQuery) {
+                            $subQuery->where('status', 'dikerjakan');
+                        }, '<', 2), // ✅ tampilkan user yang punya < 2 order dikerjakan
+                )
+                ->searchable()
+                ->preload()
+                ->required()
+                ->disabled(function ($livewire) {
+                    return $livewire->isPreviewMode ?? false;
+                }),
+
                 
     
                 Select::make('sizemodel_id')
