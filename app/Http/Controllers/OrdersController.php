@@ -320,4 +320,5 @@ public function completeOrder(Request $request, $id)
 
 
 
+
 }
