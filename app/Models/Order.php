@@ -65,36 +65,36 @@ class Order extends Model
     /**
      * Boot method untuk memastikan data tersimpan dengan benar
      */
-    protected static function boot()
-    {
-        parent::boot();
+    // protected static function boot()
+    // {
+    //     parent::boot();
         
-        static::saving(function ($model) {
-            // Pastikan array fields disimpan dengan benar sebagai JSON
-            if (isset($model->attributes['images']) && is_string($model->attributes['images'])) {
-                // Jika sudah string JSON, biarkan
-                $decoded = json_decode($model->attributes['images'], true);
-                if (json_last_error() === JSON_ERROR_NONE) {
-                    // Valid JSON, convert back to array for casting
-                    $model->attributes['images'] = $decoded;
-                }
-            }
+    //     static::saving(function ($model) {
+    //         // Pastikan array fields disimpan dengan benar sebagai JSON
+    //         if (isset($model->attributes['images']) && is_string($model->attributes['images'])) {
+    //             // Jika sudah string JSON, biarkan
+    //             $decoded = json_decode($model->attributes['images'], true);
+    //             if (json_last_error() === JSON_ERROR_NONE) {
+    //                 // Valid JSON, convert back to array for casting
+    //                 $model->attributes['images'] = $decoded;
+    //             }
+    //         }
             
-            if (isset($model->attributes['size']) && is_string($model->attributes['size'])) {
-                $decoded = json_decode($model->attributes['size'], true);
-                if (json_last_error() === JSON_ERROR_NONE) {
-                    $model->attributes['size'] = $decoded;
-                }
-            }
+    //         if (isset($model->attributes['size']) && is_string($model->attributes['size'])) {
+    //             $decoded = json_decode($model->attributes['size'], true);
+    //             if (json_last_error() === JSON_ERROR_NONE) {
+    //                 $model->attributes['size'] = $decoded;
+    //             }
+    //         }
             
-            if (isset($model->attributes['accessories_list']) && is_string($model->attributes['accessories_list'])) {
-                $decoded = json_decode($model->attributes['accessories_list'], true);
-                if (json_last_error() === JSON_ERROR_NONE) {
-                    $model->attributes['accessories_list'] = $decoded;
-                }
-            }
-        });
-    }
+    //         if (isset($model->attributes['accessories_list']) && is_string($model->attributes['accessories_list'])) {
+    //             $decoded = json_decode($model->attributes['accessories_list'], true);
+    //             if (json_last_error() === JSON_ERROR_NONE) {
+    //                 $model->attributes['accessories_list'] = $decoded;
+    //             }
+    //         }
+    //     });
+    // }
 
     /**
      * Helper method untuk mendapatkan gambar dengan URL lengkap
