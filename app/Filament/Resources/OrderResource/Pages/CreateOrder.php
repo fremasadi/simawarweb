@@ -187,7 +187,7 @@ class CreateOrder extends CreateRecord
                 }
             }
             // Convert ke JSON string untuk disimpan
-            $data['images'] = json_encode($cleanImages);
+            $data['images'] = $cleanImages;
         } else {
             $data['images'] = json_encode([]);
         }
@@ -198,14 +198,14 @@ class CreateOrder extends CreateRecord
             $cleanSize = array_filter($data['size'], function($value) {
                 return !empty($value) && $value !== null && $value !== '';
             });
-            $data['size'] = json_encode($cleanSize);
+            $data['size'] = $cleanSize;
         } else {
             $data['size'] = json_encode([]);
         }
         
         // CLEAN ACCESSORIES LIST - Convert ke JSON string
         if (isset($data['accessories_list']) && is_array($data['accessories_list'])) {
-            $data['accessories_list'] = json_encode($data['accessories_list']);
+            $data['accessories_list'] = $data['accessories_list'] ?? [];
         } else {
             $data['accessories_list'] = json_encode([]);
         }
