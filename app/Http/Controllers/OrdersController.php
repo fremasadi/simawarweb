@@ -309,7 +309,7 @@ public function completeOrder(Request $request, $id)
     return response()->json([
         'success' => true,
         'message' => 'Pesanan berhasil diselesaikan dan bonus ditambahkan.',
-        'data'    => $order,
+        'data'    => $order->toArray(), // 🔥 tambahkan toArray()
     ]);
 }
 
