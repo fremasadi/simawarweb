@@ -173,42 +173,21 @@ class CreateOrder extends CreateRecord
         if (isset($data['images']) && is_array($data['images'])) {
             $cleanImages = [];
             foreach ($data['images'] as $imageData) {
-                if (isset($imageData['photo']) && !empty($imageData['photo'])) {
-                    // Jika photo adalah array (dari FileUpload), ambil value pertama
-                    if (is_array($imageData['photo'])) {
-                        $photoValue = reset($imageData['photo']); // Ambil value pertama
-                        if ($photoValue) {
-                            $cleanImages[] = ['photo' => $photoValue];
-                        }
-                    } else {
-                        // Jika photo adalah string langsung
-                        $cleanImages[] = ['photo' => $imageData['photo']];
-                    }
+                if (isset($imageData['photo'])) {
+                    $cleanImages[] = ['photo' => is_array($imageData['photo']) ? reset($imageData['photo']) : $imageData['photo']];
                 }
             }
-            // Convert ke JSON string untuk disimpan
             $data['images'] = $cleanImages;
-        } else {
-            $data['images'] = json_encode([]);
         }
         
-        // CLEAN SIZE DATA - Convert ke JSON string
         if (isset($data['size']) && is_array($data['size'])) {
-            // Filter hanya value yang tidak kosong
-            $cleanSize = array_filter($data['size'], function($value) {
-                return !empty($value) && $value !== null && $value !== '';
-            });
-            $data['size'] = $cleanSize;
-        } else {
-            $data['size'] = json_encode([]);
+            $data['size'] = array_filter($data['size'], fn($v) => !empty($v));
         }
         
-        // CLEAN ACCESSORIES LIST - Convert ke JSON string
         if (isset($data['accessories_list']) && is_array($data['accessories_list'])) {
-            $data['accessories_list'] = $data['accessories_list'] ?? [];
-        } else {
-            $data['accessories_list'] = json_encode([]);
+            $data['accessories_list'] = $data['accessories_list'];
         }
+        
         
         // Debug: Log cleaned data
         logger('Cleaned data before save:', $data);
