@@ -377,7 +377,7 @@ class OrderResource extends Resource
                             ->where('role', 'karyawan')
                             ->whereDoesntHave('orders', function (Builder $subQuery) {
                                 $subQuery->where('status', 'dikerjakan');
-                            }, '>', 1), // HANYA jika jumlah > 1 yang dikerjakan
+                            }, '>', 2), // HANYA jika jumlah > 1 yang dikerjakan
                     )
                     ->searchable()
                     ->preload()
