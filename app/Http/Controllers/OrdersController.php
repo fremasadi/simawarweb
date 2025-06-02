@@ -261,19 +261,25 @@ public function completeOrder(Request $request, $id)
     $today = Carbon::now()->toDateString();
 
     DB::transaction(function () use ($user, $bonus, $today, $order) {
+        // Cari salary setting pertama
+        $salarySetting = \App\Models\SalarySetting::first();
+    
+        // Hitung pay date ke bulan berikutnya
+        $payDate = Carbon::now()->addMonth()->startOfDay()->toDateString();
+    
         $salary = Salary::where('user_id', $user->id)
-            ->where('pay_date', $today)
+            ->where('pay_date', $payDate) // Ganti dari $today ke $payDate
             ->first();
     
         if (!$salary) {
             $salary = Salary::create([
-                'user_id'           => $user->id,
-                'salary_setting_id' => 1,
-                'base_salary'       => 0,
-                'total_salary'      => $bonus,
-                'total_deduction'   => 0,
-                'status'            => 'pending',
-                'pay_date'          => $today,
+                'user_id'             => $user->id,
+                'salary_setting_id'   => $salarySetting->id,
+                'base_salary'         => $salarySetting->salary,
+                'total_salary'        => $bonus,
+                'total_deduction'     => 0,
+                'status'              => 'pending',
+                'pay_date'            => $payDate,
             ]);
         } else {
             $salary->total_salary += $bonus;
@@ -288,6 +294,7 @@ public function completeOrder(Request $request, $id)
             'bonus_amount' => $bonus,
         ]);
     });
+    
 
     // === Kirim WA ===
     try {
