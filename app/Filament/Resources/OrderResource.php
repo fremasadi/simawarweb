@@ -368,7 +368,7 @@ class OrderResource extends Resource
                         return $livewire->isPreviewMode ?? false;
                     }),
     
-                Select::make('ditugaskan_ke')
+                    Select::make('ditugaskan_ke')
                     ->label('Ditugaskan Ke')
                     ->relationship(
                         name: 'user',
@@ -377,7 +377,7 @@ class OrderResource extends Resource
                             ->where('role', 'karyawan')
                             ->whereDoesntHave('orders', function (Builder $subQuery) {
                                 $subQuery->where('status', 'dikerjakan');
-                            }),
+                            }, '>', 1), // HANYA jika jumlah > 1 yang dikerjakan
                     )
                     ->searchable()
                     ->preload()
@@ -385,6 +385,7 @@ class OrderResource extends Resource
                     ->disabled(function ($livewire) {
                         return $livewire->isPreviewMode ?? false;
                     }),
+                
     
                 Select::make('sizemodel_id')
                     ->label('Pilih Model Ukuran')
